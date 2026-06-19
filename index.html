@@ -168,7 +168,9 @@
             color: var(--md-sys-color-on-surface-variant);
             cursor: pointer;
             transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
+        .action-btn:active { background-color: rgba(255, 255, 255, 0.05); transform: scale(0.92); }
         .action-btn.liked { color: #d93025; }
 
         .avatar-square {
@@ -251,13 +253,16 @@
             transition: transform 0.2s, opacity 0.2s;
             animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #new-posts-bubble:active {
-            transform: scale(0.92);
-        }
+        #new-posts-bubble:active { transform: scale(0.92); }
 
         @keyframes bounceIn {
             from { transform: translateY(20px) scale(0.8); opacity: 0; }
             to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        
+        /* Comment Scroll Area */
+        .comments-list {
+            scrollbar-width: thin;
         }
     </style>
 </head>
@@ -322,11 +327,10 @@
         <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm">
             <div class="flex justify-between items-center max-w-md mx-auto w-full">
                 <div class="flex items-center gap-4">
-                    <span class="material-symbols-outlined cursor-pointer" onclick="openTab('global')">arrow_back</span>
+                    <span class="material-symbols-outlined cursor-pointer transition-transform active:scale-90" id="profile-back-btn" onclick="openTab('global')">arrow_back</span>
                     <h2 class="text-xl font-bold" id="profile-header-title">Profile</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <!-- Notification settings trigger -->
                     <span class="material-symbols-outlined cursor-pointer text-yellow-400 hidden" id="profile-bell-btn" onclick="openNotificationSettings()" title="Notification Settings">notifications</span>
                     <span class="material-symbols-outlined cursor-pointer text-red-400" id="profile-logout-btn" onclick="logout()" title="Logout">logout</span>
                 </div>
@@ -383,7 +387,6 @@
                     <span class="material-symbols-outlined text-base">attach_file</span>
                     Attach Photo (Optional):
                 </span>
-                <!-- Clean, highly reliable native browser file input that works on all mobile and desktop browsers natively -->
                 <input type="file" id="image-input" accept="image/*" class="w-full text-sm text-[var(--md-sys-color-on-surface-variant)] file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-[var(--md-sys-color-primary-container)] file:text-[var(--md-sys-color-on-primary-container)] hover:file:opacity-95 active:file:scale-95 transition-all" onchange="handleImageSelection(event)">
             </div>
         </div>
@@ -463,7 +466,7 @@
     <script>
         let API_BASE = 'https://dermal-brinda-marshier.ngrok-free.dev/api';
         
-        // Push VAPID Public Key - Mathematically valid uncompressed P-256 standard base64url key
+        // Push VAPID Public Key
         const PUBLIC_VAPID_KEY = "BDrsEIWlTy1YTAZxpkN1f1C0EcuCjL15j8lxS3KaXzDE_BvlWIHEIGdmsP3hfiiG3ldbF89pWEc6foyFxSOe5es";
 
         let isSignupMode = false; 
@@ -472,7 +475,6 @@
         let isFollowingCurrentProfile = false;
         let currentSelectedImage = null;
         
-        // Feed Cache & Background Polling arrays
         let posts = [];
         let pendingNewPosts = [];
         let pollInterval = null;
@@ -481,7 +483,6 @@
         let currentSearchType = 'posts';
         let searchTimeout = null;
 
-        // Autocomplete States
         let mentionQuery = '';
         let autocompleteIndex = -1;
         let activeMentionRange = null;
@@ -557,14 +558,14 @@
         }
 
         function closeCreateView() {
-            switchView(currentTab === 'profile' ? 'view-profile' : 'view-main');
+            if (currentTab === 'profile') switchView('view-profile');
+            else if (currentTab === 'search') switchView('view-search');
+            else switchView('view-main');
         }
 
         // --- BOTTOM NAV TABS ---
         function openTab(tabName) {
             currentTab = tabName;
-            
-            // Clean active background indicators
             hideNewPostsBubble();
             pendingNewPosts = [];
 
@@ -586,13 +587,12 @@
                 fetchFeedPosts(tabName);
                 startPolling();
             } else {
-                // Stop polling if we go away from main feeds to optimize resources
                 stopPolling();
                 if (tabName === 'search') {
                     switchView('view-search');
                     performSearch();
                 } else if (tabName === 'profile') {
-                    openProfile(AuthStorage.getUser());
+                    openProfile(AuthStorage.getUser(), true);
                 }
             }
         }
@@ -687,7 +687,7 @@
             switchView('view-auth');
         }
 
-        // --- RENDER POST COMPONENT WITH MENTIONS parsing ---
+        // --- RENDER POST COMPONENT ---
         function parseMentions(text) {
             const mentionPattern = /@([a-zA-Z0-9_]+)#([a-zA-Z0-9]{5})/g;
             return text.replace(mentionPattern, (match, username, userid) => {
@@ -714,6 +714,7 @@
 
             const avatarBg = getAvatarColor(post.author);
             const parsedContent = parseMentions(post.content);
+            const userAvatarLetter = AuthStorage.getUser().charAt(0).toUpperCase() || 'U';
 
             el.innerHTML = `
                 <div class="flex items-center gap-3 mb-3">
@@ -727,16 +728,107 @@
                 ${imgHtml}
                 
                 <div class="flex justify-between items-center mt-3 pt-2 border-t border-[var(--md-sys-color-outline)]">
-                    <div class="action-btn ${heartClass}" id="btn-like-${post.id}" onclick="toggleLike('${post.id}')">
-                        <span class="material-symbols-outlined transition-transform duration-200" id="icon-like-${post.id}" style="font-variation-settings: 'FILL' ${heartFill}; color: ${heartColor}">favorite</span>
-                        <span class="font-medium" id="count-like-${post.id}">${post.likes || 0}</span>
+                    <div class="flex gap-4">
+                        <div class="action-btn ${heartClass}" id="btn-like-${post.id}" onclick="toggleLike('${post.id}')">
+                            <span class="material-symbols-outlined transition-transform duration-200" id="icon-like-${post.id}" style="font-variation-settings: 'FILL' ${heartFill}; color: ${heartColor}">favorite</span>
+                            <span class="font-medium" id="count-like-${post.id}">${post.likes || 0}</span>
+                        </div>
+                        <div class="action-btn" onclick="toggleComments('${post.id}')">
+                            <span class="material-symbols-outlined">chat_bubble</span>
+                            <span class="font-medium" id="count-comment-${post.id}">${post.comment_count || 0}</span>
+                        </div>
                     </div>
                     <div class="action-btn" onclick="sharePost('${post.id}')">
                         <span class="material-symbols-outlined">share</span>
                     </div>
                 </div>
+
+                <!-- Live Discussion/Comment Thread (Hidden by default) -->
+                <div id="comments-section-${post.id}" class="hidden flex-col gap-3 mt-3 pt-3 border-t border-[var(--md-sys-color-outline)]">
+                    <div id="comments-list-${post.id}" class="comments-list flex flex-col gap-3 max-h-60 overflow-y-auto pr-1"></div>
+                    <div class="flex gap-2 items-center">
+                        <div class="w-8 h-8 rounded-full bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            ${userAvatarLetter}
+                        </div>
+                        <input type="text" id="comment-input-${post.id}" class="flex-1 bg-black/20 border border-transparent rounded-full px-4 py-2 text-sm outline-none focus:border-[var(--md-sys-color-primary)] transition-colors" placeholder="Add a comment..." onkeypress="if(event.key === 'Enter') submitComment('${post.id}')">
+                        <button class="material-symbols-outlined text-[var(--md-sys-color-primary)] bg-[var(--md-sys-color-surface-variant)] p-2 flex-shrink-0 rounded-full active:scale-90 transition-transform" onclick="submitComment('${post.id}')">send</button>
+                    </div>
+                </div>
             `;
             return el;
+        }
+
+        // --- COMMENTS ENGINE ---
+        async function toggleComments(postId) {
+            const section = document.getElementById(`comments-section-${postId}`);
+            const list = document.getElementById(`comments-list-${postId}`);
+            
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                section.classList.add('flex');
+                
+                list.innerHTML = '<div class="text-xs opacity-50 text-center py-2">Loading comments...</div>';
+                try {
+                    const data = await apiRequest('/posts/comments', { post_id: postId });
+                    list.innerHTML = '';
+                    if (data.comments.length === 0) {
+                        list.innerHTML = '<div class="text-xs opacity-50 text-center py-2">No comments yet. Be the first!</div>';
+                    } else {
+                        data.comments.forEach(c => {
+                            list.appendChild(createCommentItem(c));
+                        });
+                        list.scrollTop = list.scrollHeight;
+                    }
+                } catch (e) {
+                    list.innerHTML = '<div class="text-xs text-red-400 text-center py-2">Failed to load comments.</div>';
+                }
+            } else {
+                section.classList.add('hidden');
+                section.classList.remove('flex');
+            }
+        }
+
+        function createCommentItem(comment) {
+            const el = document.createElement('div');
+            el.className = 'flex gap-2 text-sm';
+            const avatarBg = getAvatarColor(comment.author);
+            el.innerHTML = `
+                <div class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs text-white cursor-pointer active:scale-90 transition-transform" style="background-color: ${avatarBg}" onclick="openProfile('${comment.author}')">${comment.author.charAt(0).toUpperCase()}</div>
+                <div class="flex-1 bg-black/10 rounded-2xl rounded-tl-none px-3 py-2">
+                    <div class="font-bold text-[13px] cursor-pointer hover:underline mb-0.5 inline-block" onclick="openProfile('${comment.author}')">${comment.author}</div>
+                    <div class="break-words text-[13.5px] leading-snug">${parseMentions(comment.content)}</div>
+                </div>
+            `;
+            return el;
+        }
+
+        async function submitComment(postId) {
+            const input = document.getElementById(`comment-input-${postId}`);
+            const content = input.value.trim();
+            if (!content) return;
+            
+            input.disabled = true;
+            try {
+                const data = await apiRequest('/posts/comment', { post_id: postId, content: content });
+                input.value = '';
+                
+                const list = document.getElementById(`comments-list-${postId}`);
+                if (list.innerHTML.includes('No comments yet')) list.innerHTML = '';
+                list.appendChild(createCommentItem(data.comment));
+                list.scrollTop = list.scrollHeight;
+                
+                // Update numerical count seamlessly
+                const countEl = document.getElementById(`count-comment-${postId}`);
+                let count = parseInt(countEl.innerText) || 0;
+                countEl.innerText = count + 1;
+                
+                if (postCache[postId]) postCache[postId].comment_count = count + 1;
+            } catch (e) {
+                showToast("Failed to post comment.");
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
         }
 
         // --- FEED ---
@@ -750,7 +842,6 @@
                 pendingNewPosts = [];
                 hideNewPostsBubble();
 
-                // Embed contextual Push Prompt Card right inside the feeds if permissions are not resolved
                 if ('Notification' in window && Notification.permission === 'default' && AuthStorage.get()) {
                     const promptCard = document.createElement('div');
                     promptCard.id = 'push-prompt-card';
@@ -760,7 +851,7 @@
                             <span class="material-symbols-outlined text-2xl text-[var(--md-sys-color-primary)]">notifications_active</span>
                             <div class="flex-1">
                                 <div class="font-bold text-sm">Enable Push Notifications</div>
-                                <div class="text-xs opacity-90 mt-1">Don't miss a beat! Get instant alerts when followed accounts post or tag you in mentions.</div>
+                                <div class="text-xs opacity-90 mt-1">Don't miss a beat! Get instant alerts when friends post, tag you, or comment on your posts.</div>
                             </div>
                         </div>
                         <div class="flex justify-end gap-2 mt-1">
@@ -780,8 +871,7 @@
                     return;
                 }
                 posts.forEach(post => {
-                    const el = createPostElement(post);
-                    container.appendChild(el);
+                    container.appendChild(createPostElement(post));
                 });
             } catch (err) {
                 if(err.message.includes("Invalid or expired token")) logout();
@@ -789,17 +879,15 @@
             }
         }
 
-        // --- BACKGROUND RE-INDEX & PASSIVE UPDATES ---
         function startPolling() {
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(async () => {
                 if (currentTab === 'global' || currentTab === 'following') {
                     await checkForNewPosts();
                 }
-            }, 15000); // Check for new posts every 15 seconds
+            }, 15000); 
         }
 
-        // --- STOP POLLLING ---
         function stopPolling() {
             if (pollInterval) {
                 clearInterval(pollInterval);
@@ -816,83 +904,56 @@
                 const currentNewestId = posts.length > 0 ? posts[0].id : null;
                 if (!currentNewestId) return;
 
-                // Find if the currently loaded newest post exists in the fresh batch
                 const firstOldIndex = latestPosts.findIndex(p => p.id === currentNewestId);
 
                 if (firstOldIndex > 0) {
-                    // New posts have arrived!
                     const newBatch = latestPosts.slice(0, firstOldIndex);
                     const container = document.getElementById('main-feed-container');
                     
                     if (container.scrollTop < 120) {
-                        // User is near the top of the screen; merge and render naturally
                         posts = [...newBatch, ...posts];
                         renderNewPostsAtTop(newBatch);
                     } else {
-                        // User is actively reading down. Accumulate in queue and show bubble
                         pendingNewPosts = [...newBatch, ...pendingNewPosts];
-                        
-                        // Eliminate duplicates in the pending queue
                         const uniquePending = [];
                         const seenIds = new Set();
                         pendingNewPosts.forEach(p => {
-                            if (!seenIds.has(p.id)) {
-                                seenIds.add(p.id);
-                                uniquePending.push(p);
-                            }
+                            if (!seenIds.has(p.id)) { seenIds.add(p.id); uniquePending.push(p); }
                         });
                         pendingNewPosts = uniquePending;
-                        
                         showNewPostsBubble();
                     }
                 }
-            } catch (err) {
-                console.warn("Background poll failed quietly:", err);
-            }
+            } catch (err) {}
         }
 
         function renderNewPostsAtTop(newBatch) {
             const container = document.getElementById('main-feed-container');
             const promptCard = document.getElementById('push-prompt-card');
-            
-            // Determine inserting placement (directly after push prompt card or at top)
             const insertBeforeNode = promptCard ? promptCard.nextSibling : container.firstChild;
-
-            // Render batch chronologically (reversed so top stays newest)
             for (let i = newBatch.length - 1; i >= 0; i--) {
                 const el = createPostElement(newBatch[i]);
-                if (insertBeforeNode) {
-                    container.insertBefore(el, insertBeforeNode);
-                } else {
-                    container.appendChild(el);
-                }
+                if (insertBeforeNode) container.insertBefore(el, insertBeforeNode);
+                else container.appendChild(el);
             }
         }
 
         function loadPendingNewPosts() {
             if (pendingNewPosts.length === 0) return;
-
             posts = [...pendingNewPosts, ...posts];
             renderNewPostsAtTop(pendingNewPosts);
             pendingNewPosts = [];
-
-            // Smooth scroll to the top of the feed container
-            const container = document.getElementById('main-feed-container');
-            container.scrollTo({ top: 0, behavior: 'smooth' });
-
+            document.getElementById('main-feed-container').scrollTo({ top: 0, behavior: 'smooth' });
             hideNewPostsBubble();
         }
 
         function showNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
-            bubble.classList.remove('hidden');
-            bubble.classList.add('flex');
+            bubble.classList.remove('hidden'); bubble.classList.add('flex');
         }
-
         function hideNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
-            bubble.classList.remove('flex');
-            bubble.classList.add('hidden');
+            bubble.classList.remove('flex'); bubble.classList.add('hidden');
         }
 
         // --- SEARCH ---
@@ -922,10 +983,7 @@
         async function performSearch() {
             const query = document.getElementById('search-input').value.trim();
             const container = document.getElementById('search-results-container');
-            if (!query) {
-                container.innerHTML = '<div class="text-center opacity-60 mt-10">Start typing to search Soshal...</div>';
-                return;
-            }
+            if (!query) { container.innerHTML = '<div class="text-center opacity-60 mt-10">Start typing to explore...</div>'; return; }
             container.innerHTML = '<div class="text-center opacity-60 mt-10">Searching...</div>';
             try {
                 const data = await apiRequest('/search', { query: query, type: currentSearchType });
@@ -954,8 +1012,7 @@
                     });
                 } else {
                     data.results.forEach(post => {
-                        const el = createPostElement(post);
-                        container.appendChild(el);
+                        container.appendChild(createPostElement(post));
                     });
                 }
             } catch (err) {
@@ -964,9 +1021,18 @@
         }
 
         // --- PROFILE LOADING ---
-        async function openProfile(username) {
+        async function openProfile(username, isOwnTab = false) {
             currentProfileUser = username;
             switchView('view-profile');
+            
+            const backBtn = document.getElementById('profile-back-btn');
+            if (isOwnTab) {
+                backBtn.style.display = 'none';
+            } else {
+                backBtn.style.display = 'block';
+                if (currentTab === 'search') backBtn.onclick = () => openTab('search');
+                else backBtn.onclick = () => openTab('global');
+            }
             
             document.getElementById('profile-header-title').innerText = username;
             document.getElementById('profile-username').innerText = username;
@@ -980,23 +1046,21 @@
                 const profileData = await apiRequest('/users/profile', { username: username });
                 document.getElementById('profile-followers').innerText = profileData.followers_count;
                 document.getElementById('profile-following').innerText = profileData.following_count;
-                
-                // Show cryptographic discriminator user_id
-                const discEl = document.getElementById('profile-discriminator');
-                discEl.innerText = profileData.user_id ? `#${profileData.user_id}` : '';
+                document.getElementById('profile-discriminator').innerText = profileData.user_id ? `#${profileData.user_id}` : '';
 
                 const followBtn = document.getElementById('btn-follow');
                 const bellBtn = document.getElementById('profile-bell-btn');
+                const logoutBtn = document.getElementById('profile-logout-btn');
                 
                 if (profileData.is_self) {
                     followBtn.style.display = 'none';
-                    bellBtn.classList.remove('hidden'); // Show push configuration utility for self
-                    
-                    // Save personal notification preferences locally
+                    logoutBtn.classList.remove('hidden');
+                    bellBtn.classList.remove('hidden'); 
                     localStorage.setItem('soshal_notif_pref', profileData.notification_preference || 'following');
                 } else {
                     followBtn.style.display = 'block';
-                    bellBtn.classList.add('hidden'); // Hide push configuration from other users
+                    logoutBtn.classList.add('hidden');
+                    bellBtn.classList.add('hidden'); 
                     isFollowingCurrentProfile = profileData.is_following;
                     followBtn.innerText = isFollowingCurrentProfile ? 'Unfollow' : 'Follow';
                     followBtn.style.backgroundColor = isFollowingCurrentProfile ? 'var(--md-sys-color-surface-variant)' : 'var(--md-sys-color-primary)';
@@ -1010,17 +1074,11 @@
                     container.innerHTML = '<div class="text-center mt-8 opacity-70 text-sm">No posts yet.</div>';
                 } else {
                     postsData.posts.forEach(post => {
-                        const el = createPostElement(post);
-                        container.appendChild(el);
+                        container.appendChild(createPostElement(post));
                     });
                 }
             } catch(e) {
-                document.getElementById('profile-posts-container').innerHTML = `
-                    <div class="text-center mt-8 text-red-400 p-4">
-                        Unable to pull data from server.<br>
-                        Check connection parameters or logout above to reconnect.
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center mt-8 text-red-400 p-4">Unable to pull data from server.</div>`;
             }
         }
 
@@ -1042,24 +1100,19 @@
             }
         }
 
-        // --- PUSH NOTIFICATION SETTINGS CONTROLLERS ---
+        // --- PUSH NOTIFICATION SETTINGS ---
         async function enablePushPrompt() {
             const card = document.getElementById('push-prompt-card');
             showToast("Requesting push permission...");
             try {
                 const sub = await registerAndSubscribePush();
                 if (sub) {
-                    await apiRequest('/users/save_notifications_settings', {
-                        preference: 'following',
-                        subscription: sub
-                    });
+                    await apiRequest('/users/save_notifications_settings', { preference: 'following', subscription: sub });
                     localStorage.setItem('soshal_notif_pref', 'following');
                     showToast("Push notifications successfully configured!");
                     if (card) card.remove();
                 }
-            } catch (err) {
-                showToast("Could not subscribe: " + err.message);
-            }
+            } catch (err) { showToast("Could not subscribe: " + err.message); }
         }
 
         function openNotificationSettings() {
@@ -1070,81 +1123,42 @@
             document.getElementById('dialog-notifications').classList.add('flex');
         }
 
-        // --- CLOSE NOTIFICATIONS ---
         function closeNotificationSettings() {
-            const dialog = document.getElementById('dialog-notifications');
-            dialog.classList.remove('flex');
-            dialog.classList.add('hidden');
+            document.getElementById('dialog-notifications').classList.remove('flex');
+            document.getElementById('dialog-notifications').classList.add('hidden');
         }
 
         async function saveNotificationSettings() {
             const selectedPref = document.querySelector('input[name="notif-pref"]:checked').value;
             const btn = document.getElementById('btn-save-notifications');
-            btn.innerText = "Saving...";
-            btn.disabled = true;
-
+            btn.innerText = "Saving..."; btn.disabled = true;
             let subscription = null;
-
             if (selectedPref !== 'off') {
-                try {
-                    subscription = await registerAndSubscribePush();
-                } catch (err) {
-                    showToast("Failed to secure push token: " + err.message);
-                    btn.innerText = "Save";
-                    btn.disabled = false;
-                    return;
-                }
+                try { subscription = await registerAndSubscribePush(); } 
+                catch (err) { showToast("Failed to secure push token: " + err.message); btn.innerText = "Save"; btn.disabled = false; return; }
             }
-
             try {
-                const response = await apiRequest('/users/save_notifications_settings', {
-                    preference: selectedPref,
-                    subscription: subscription
-                });
+                await apiRequest('/users/save_notifications_settings', { preference: selectedPref, subscription: subscription });
                 localStorage.setItem('soshal_notif_pref', selectedPref);
                 showToast(`Preferences updated to: ${selectedPref}`);
                 closeNotificationSettings();
-            } catch (err) {
-                showToast("Server sync failed.");
-            } finally {
-                btn.innerText = "Save";
-                btn.disabled = false;
-            }
+            } catch (err) { showToast("Server sync failed."); } 
+            finally { btn.innerText = "Save"; btn.disabled = false; }
         }
 
         async function registerServiceWorker() {
             if (!('serviceWorker' in navigator)) return;
-            try {
-                await navigator.serviceWorker.register('/sw.js');
-                console.log("Push Service Worker registered.");
-            } catch (e) {
-                console.warn("SW Registration ignored or unsupported.");
-            }
+            try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}
         }
 
         async function registerAndSubscribePush() {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                throw new Error("Push not supported on this browser/wrapper");
-            }
-
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error("Push not supported on this browser/wrapper");
             const permission = await Notification.requestPermission();
-            if (permission !== 'granted') {
-                throw new Error("Notification permission denied");
-            }
-
+            if (permission !== 'granted') throw new Error("Notification permission denied");
             const reg = await navigator.serviceWorker.ready;
-
-            // Unsubscribe existing to avoid conflicts
             const existingSub = await reg.pushManager.getSubscription();
-            if (existingSub) {
-                await existingSub.unsubscribe();
-            }
-
-            const applicationServerKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
-            return await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey
-            });
+            if (existingSub) await existingSub.unsubscribe();
+            return await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY) });
         }
 
         function urlBase64ToUint8Array(base64String) {
@@ -1152,142 +1166,61 @@
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
             const rawData = window.atob(base64);
             const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
             return outputArray;
         }
 
-        // --- CARET POSITION TRACKING MENTIONS CONTROLLER ---
         function getCaretCoordinates(element, position) {
             const { offsetLeft, offsetTop } = element;
             const div = document.createElement('div');
             const copyStyle = getComputedStyle(element);
-            for (const prop of copyStyle) {
-                div.style[prop] = copyStyle[prop];
-            }
-            div.style.position = 'absolute';
-            div.style.visibility = 'hidden';
-            div.style.whiteSpace = 'pre-wrap';
-            
-            const textContent = element.value.substr(0, position);
-            div.textContent = textContent;
-            
+            for (const prop of copyStyle) div.style[prop] = copyStyle[prop];
+            div.style.position = 'absolute'; div.style.visibility = 'hidden'; div.style.whiteSpace = 'pre-wrap';
+            div.textContent = element.value.substr(0, position);
             const span = document.createElement('span');
             span.textContent = element.value.substr(position) || '.';
             div.appendChild(span);
-            
             document.body.appendChild(div);
             const rect = span.getBoundingClientRect();
             document.body.removeChild(div);
-            
-            return {
-                top: element.getBoundingClientRect().top + window.scrollY + rect.top - div.scrollTop,
-                left: element.getBoundingClientRect().left + window.scrollX + rect.left
-            };
+            return { top: element.getBoundingClientRect().top + window.scrollY + rect.top - div.scrollTop, left: element.getBoundingClientRect().left + window.scrollX + rect.left };
         }
 
         function handlePostContentInput(e) {
             const textarea = e.target;
             const text = textarea.value;
             const caretPos = textarea.selectionStart;
-            
-            // Look backward from caret to find a active '@' prefix query
             const lastAtIdx = text.lastIndexOf('@', caretPos - 1);
             if (lastAtIdx !== -1 && !text.substring(lastAtIdx, caretPos).includes(' ')) {
-                const query = text.substring(lastAtIdx + 1, caretPos);
-                openMentionAutocomplete(textarea, lastAtIdx, query);
-            } else {
-                closeMentionAutocomplete();
-            }
+                openMentionAutocomplete(textarea, lastAtIdx, text.substring(lastAtIdx + 1, caretPos));
+            } else closeMentionAutocomplete();
         }
 
         async function openMentionAutocomplete(textarea, atIndex, query) {
             const coords = getCaretCoordinates(textarea, atIndex);
             const portal = document.getElementById('mention-autocomplete');
-            
             try {
                 const data = await apiRequest('/search', { query: query, type: 'users' });
-                if (!data.results || data.results.length === 0) {
-                    closeMentionAutocomplete();
-                    return;
-                }
-                
+                if (!data.results || data.results.length === 0) { closeMentionAutocomplete(); return; }
                 portal.innerHTML = '';
-                portal.style.top = `${coords.top + 24}px`;
-                portal.style.left = `${coords.left}px`;
-                portal.style.display = 'block';
-
+                portal.style.top = `${coords.top + 24}px`; portal.style.left = `${coords.left}px`; portal.style.display = 'block';
                 data.results.forEach(user => {
                     const el = document.createElement('div');
                     el.className = 'mention-item';
                     el.onclick = () => {
-                        const before = textarea.value.substring(0, atIndex);
-                        const after = textarea.value.substring(textarea.selectionStart);
-                        textarea.value = `${before}@${user.username}#${user.user_id} ${after}`;
+                        textarea.value = `${textarea.value.substring(0, atIndex)}@${user.username}#${user.user_id} ${textarea.value.substring(textarea.selectionStart)}`;
                         closeMentionAutocomplete();
                         textarea.focus();
                     };
                     el.innerHTML = `<strong>@${user.username}</strong><span class="opacity-50 text-xs">#${user.user_id}</span>`;
                     portal.appendChild(el);
                 });
-            } catch (err) {
-                closeMentionAutocomplete();
-            }
+            } catch (err) { closeMentionAutocomplete(); }
         }
 
-        function closeMentionAutocomplete() {
-            document.getElementById('mention-autocomplete').style.display = 'none';
-        }
+        function closeMentionAutocomplete() { document.getElementById('mention-autocomplete').style.display = 'none'; }
 
         // --- GENERAL POST UTILITIES ---
-        async function toggleLike(postId) {
-            const post = postCache[postId];
-            if (!post) return;
-            const isLiked = LikeStorage.has(postId);
-            const action = isLiked ? 'unlike' : 'like';
-
-            const icons = document.querySelectorAll(`#icon-like-${postId}`);
-            const counts = document.querySelectorAll(`#count-like-${postId}`);
-            const btns = document.querySelectorAll(`#btn-like-${postId}`);
-
-            if (isLiked) {
-                LikeStorage.remove(postId);
-                post.likes = Math.max(0, (post.likes || 1) - 1);
-                icons.forEach(i => { i.style.fontVariationSettings = "'FILL' 0"; i.style.color = "inherit"; });
-                btns.forEach(b => b.classList.remove('liked'));
-            } else {
-                LikeStorage.add(postId);
-                post.likes = (post.likes || 0) + 1;
-                icons.forEach(i => { 
-                    i.style.fontVariationSettings = "'FILL' 1"; 
-                    i.style.color = "#d93025"; 
-                    i.style.transform = "scale(1.3)";
-                    setTimeout(() => i.style.transform = "scale(1)", 200);
-                });
-                btns.forEach(b => b.classList.add('liked'));
-            }
-            counts.forEach(c => c.innerText = post.likes);
-            try { await apiRequest('/posts/like', { post_id: postId, action: action }); } catch (err) {}
-        }
-
-        function sharePost(postId) {
-            const post = postCache[postId];
-            if (!post) return;
-            const textToShare = `"${post.content}" - ${post.author} on Soshal`;
-            try {
-                const el = document.createElement('textarea');
-                el.value = textToShare;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-                showToast("Copied to clipboard!");
-            } catch (err) {
-                showToast("Couldn't copy text.");
-            }
-        }
-
         function handleImageSelection(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1307,61 +1240,41 @@
             document.getElementById('image-preview-container').classList.add('hidden');
         }
 
-        async function submitPost() {
+        function submitPost() {
             const content = document.getElementById('create-post-content').value.trim();
             if (!content && !currentSelectedImage) return showToast("Post cannot be empty.");
+            const postContent = content, postImage = currentSelectedImage;
 
-            // Capture the content and image state to process in the background
-            const postContent = content;
-            const postImage = currentSelectedImage;
-
-            // Instantly clear the UI inputs, close the create panel, and go back home
             document.getElementById('create-post-content').value = '';
             clearImageSelection();
             closeCreateView();
-            openTab('global');
-            
             showToast("Posting...");
 
-            // Dispatch network request asynchronously
             apiRequest('/posts/create', { content: postContent, image: postImage })
                 .then(() => {
                     showToast("Posted successfully!");
-                    // Refresh the current timeline to show the new post
-                    if (currentTab === 'global' || currentTab === 'following') {
-                        fetchFeedPosts(currentTab);
-                    }
+                    if (currentTab === 'global' || currentTab === 'following') fetchFeedPosts(currentTab);
+                    else if (currentTab === 'profile') openProfile(currentProfileUser, true);
+                    else if (currentTab === 'search') performSearch();
                 })
-                .catch(err => {
-                    showToast("Posting failed: " + err.message);
-                });
+                .catch(err => { showToast("Posting failed: " + err.message); });
         }
 
         function openImageLightbox(src) {
             const lightbox = document.getElementById('image-lightbox');
             const img = document.getElementById('lightbox-img');
-            img.src = src;
-            lightbox.classList.remove('hidden');
-            lightbox.classList.add('flex');
+            img.src = src; lightbox.classList.remove('hidden'); lightbox.classList.add('flex');
             void lightbox.offsetWidth;
-            lightbox.classList.remove('opacity-0');
-            lightbox.classList.add('opacity-100');
-            img.classList.remove('scale-95');
-            img.classList.add('scale-100');
+            lightbox.classList.remove('opacity-0'); lightbox.classList.add('opacity-100');
+            img.classList.remove('scale-95'); img.classList.add('scale-100');
         }
 
         function closeImageLightbox() {
             const lightbox = document.getElementById('image-lightbox');
             const img = document.getElementById('lightbox-img');
-            lightbox.classList.remove('opacity-100');
-            lightbox.classList.add('opacity-0');
-            img.classList.remove('scale-100');
-            img.classList.add('scale-95');
-            setTimeout(() => {
-                lightbox.classList.add('hidden');
-                lightbox.classList.remove('flex');
-                img.src = '';
-            }, 300);
+            lightbox.classList.remove('opacity-100'); lightbox.classList.add('opacity-0');
+            img.classList.remove('scale-100'); img.classList.add('scale-95');
+            setTimeout(() => { lightbox.classList.add('hidden'); lightbox.classList.remove('flex'); img.src = ''; }, 300);
         }
     </script>
 </body>
