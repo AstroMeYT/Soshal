@@ -418,8 +418,8 @@
     <script>
         let API_BASE = 'https://dermal-brinda-marshier.ngrok-free.dev/api';
         
-        // Push VAPID Public Key - Must be equivalent to server-side config
-        const PUBLIC_VAPID_KEY = "BDb7_547f_VapidPublicDemoKeyFormatOnly_ReplaceInProduction_KeepSecureValue";
+        // Push VAPID Public Key - Mathematically valid uncompressed P-256 standard base64url key
+        const PUBLIC_VAPID_KEY = "BDrsEIWlTy1YTAZxpkN1f1C0EcuCjL15j8lxS3KaXzDE_BvlWIHEIGdmsP3hfiiG3ldbF89pWEc6foyFxSOe5es";
 
         let isSignupMode = false; // Declaring the missing auth toggle state variable
         let currentTab = 'global';
@@ -686,12 +686,33 @@
                 const data = await apiRequest('/posts/list', { limit: 50, feed_type: feedType });
                 container.innerHTML = '';
                 
+                // Embed contextual Push Prompt Card right inside the feeds if permissions are not resolved
+                if ('Notification' in window && Notification.permission === 'default' && AuthStorage.get()) {
+                    const promptCard = document.createElement('div');
+                    promptCard.id = 'push-prompt-card';
+                    promptCard.className = 'm3-card !bg-[var(--md-sys-color-primary-container)] !text-[var(--md-sys-color-on-primary-container)] mb-4 p-4 flex flex-col gap-3';
+                    promptCard.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <span class="material-symbols-outlined text-2xl text-[var(--md-sys-color-primary)]">notifications_active</span>
+                            <div class="flex-1">
+                                <div class="font-bold text-sm">Enable Push Notifications</div>
+                                <div class="text-xs opacity-90 mt-1">Don't miss a beat! Get instant alerts when followed accounts post or tag you in mentions.</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 mt-1">
+                            <button class="px-3 py-1.5 rounded text-xs font-medium bg-black/20 text-[var(--md-sys-color-on-primary-container)] transition-all active:scale-95" onclick="document.getElementById('push-prompt-card').remove()">Later</button>
+                            <button class="px-3 py-1.5 rounded text-xs font-semibold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] transition-all active:scale-95" onclick="enablePushPrompt()">Enable Now</button>
+                        </div>
+                    `;
+                    container.appendChild(promptCard);
+                }
+
                 if (feedType === 'following' && data.is_following_empty) {
-                    container.innerHTML = `<div class="text-center mt-20 opacity-70 px-4">You aren't following anyone yet.<br><br>Switch to Explore!</div>`;
+                    container.innerHTML += `<div class="text-center mt-20 opacity-70 px-4">You aren't following anyone yet.<br><br>Switch to Explore!</div>`;
                     return;
                 }
                 if (!data.posts || data.posts.length === 0) {
-                    container.innerHTML = '<div class="text-center mt-20 opacity-70">No posts found.</div>';
+                    container.innerHTML += '<div class="text-center mt-20 opacity-70">No posts found.</div>';
                     return;
                 }
                 data.posts.forEach((post, index) => {
@@ -853,6 +874,25 @@
         }
 
         // --- PUSH NOTIFICATION SETTINGS CONTROLLERS ---
+        async function enablePushPrompt() {
+            const card = document.getElementById('push-prompt-card');
+            showToast("Requesting push permission...");
+            try {
+                const sub = await registerAndSubscribePush();
+                if (sub) {
+                    await apiRequest('/users/save_notifications_settings', {
+                        preference: 'following',
+                        subscription: sub
+                    });
+                    localStorage.setItem('soshal_notif_pref', 'following');
+                    showToast("Push notifications successfully configured!");
+                    if (card) card.remove();
+                }
+            } catch (err) {
+                showToast("Could not subscribe: " + err.message);
+            }
+        }
+
         function openNotificationSettings() {
             const currentPref = localStorage.getItem('soshal_notif_pref') || 'following';
             const radio = document.querySelector(`input[name="notif-pref"][value="${currentPref}"]`);
@@ -879,9 +919,10 @@
                 try {
                     subscription = await registerAndSubscribePush();
                 } catch (err) {
-                    console.warn("Push subscription failed:", err);
-                    showToast("Push token failed. Saving preferences without active pushes.");
-                    // Do not abort; continue saving the preference on the server
+                    showToast("Failed to secure push token: " + err.message);
+                    btn.innerText = "Save";
+                    btn.disabled = false;
+                    return;
                 }
             }
 
@@ -913,28 +954,19 @@
 
         async function registerAndSubscribePush() {
             if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                throw new Error("Push unsupported");
+                throw new Error("Push not supported on this browser/wrapper");
             }
 
-            // Grab the registration directly without waiting indefinitely on the blocking .ready promise
-            let reg = await navigator.serviceWorker.getRegistration();
-            if (!reg) {
-                reg = await navigator.serviceWorker.register('/sw.js');
-            }
-
+            const reg = await navigator.serviceWorker.ready;
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 throw new Error("Notification permission denied");
             }
 
-            // Unsubscribe existing to avoid conflicts, handling errors gracefully
-            try {
-                const existingSub = await reg.pushManager.getSubscription();
-                if (existingSub) {
-                    await existingSub.unsubscribe();
-                }
-            } catch (e) {
-                console.warn("Unsubscribe failed:", e);
+            // Unsubscribe existing to avoid conflicts
+            const existingSub = await reg.pushManager.getSubscription();
+            if (existingSub) {
+                await existingSub.unsubscribe();
             }
 
             const applicationServerKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
