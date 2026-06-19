@@ -337,9 +337,10 @@
             
             <div class="flex border-t border-[var(--md-sys-color-outline)] pt-4 mt-auto pb-4">
                 <input type="file" id="image-input" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
-                <button class="action-btn" style="background-color: var(--md-sys-color-surface-variant);" onclick="document.getElementById('image-input').click()">
+                <!-- Native Label trigger styled as button bypasses mobile browser security flags -->
+                <label for="image-input" class="action-btn cursor-pointer select-none active:scale-95 transition-transform" style="background-color: var(--md-sys-color-surface-variant); display: flex; align-items: center; gap: 6px;">
                     <span class="material-symbols-outlined">image</span> Add Image
-                </button>
+                </label>
             </div>
         </div>
     </div>
