@@ -16,7 +16,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        /* Material 3 Dark Theme Token Palette */
         :root {
             --md-sys-color-primary: #D0BCFF;
             --md-sys-color-on-primary: #381E72;
@@ -186,7 +185,6 @@
             font-size: 18px;
         }
 
-        /* Autocomplete Mention Popover */
         #mention-autocomplete {
             position: fixed;
             z-index: 100;
@@ -233,7 +231,6 @@
         .hidden-by-default { display: none !important; }
         .app-container.active.hidden-by-default { display: flex !important; }
 
-        /* Floating New Posts Bubble style */
         #new-posts-bubble {
             position: fixed;
             bottom: 80px;
@@ -321,8 +318,7 @@
 
     <!-- SECURE E2EE DIRECT MESSAGES (DM) VIEW -->
     <div id="view-dms" class="app-container hidden-by-default bg-[var(--md-sys-color-surface)]">
-        <!-- DM Headers -->
-        <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm">
+        <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm flex-shrink-0">
             <div class="flex justify-between items-center max-w-md mx-auto w-full">
                 <div class="flex items-center gap-3" id="dm-header-back-container" style="display: none;">
                     <span class="material-symbols-outlined cursor-pointer transition-transform active:scale-90" onclick="exitActiveChat()">arrow_back</span>
@@ -335,16 +331,25 @@
             </div>
         </div>
 
-        <!-- Scrollable DM Container -->
-        <div class="scroll-area w-full max-w-md mx-auto" id="dm-content-area"></div>
+        <div class="scroll-area w-full max-w-md mx-auto flex-1 !pb-4" id="dm-content-area"></div>
 
-        <!-- Chat Input Bar (Initially Hidden) -->
-        <div id="dm-chat-input-bar" class="hidden absolute bottom-0 left-0 w-full bg-[var(--md-sys-color-surface)] p-3 border-t border-[var(--md-sys-color-outline)] z-30 flex items-center gap-2 max-w-md mx-auto left-1/2 -translate-x-1/2">
+        <div id="dm-image-preview-container" class="hidden w-full max-w-md mx-auto bg-black/20 p-3 border-t border-[var(--md-sys-color-outline)] flex-shrink-0 relative">
+            <div class="relative w-20 h-20 rounded border border-[var(--md-sys-color-outline)] overflow-hidden">
+                <img id="dm-image-preview" src="" class="w-full h-full object-cover">
+                <button class="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full flex items-center justify-center leading-none" onclick="clearDMImageSelection()">
+                    <span class="material-symbols-outlined !text-xs">close</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="dm-chat-input-bar" class="hidden w-full bg-[var(--md-sys-color-surface)] p-3 border-t border-[var(--md-sys-color-outline)] z-30 flex items-center gap-2 max-w-md mx-auto flex-shrink-0 pb-safe">
+            <button class="material-symbols-outlined text-[var(--md-sys-color-on-surface-variant)] bg-[var(--md-sys-color-surface-variant)] p-2.5 rounded-full active:scale-90 transition-transform" onclick="document.getElementById('dm-image-input').click()">attach_file</button>
+            <input type="file" id="dm-image-input" accept="image/*" class="hidden" onchange="handleDMImageSelection(event)">
+            
             <input type="text" id="dm-message-input" class="flex-1 bg-black/20 border border-transparent rounded-full px-4 py-2.5 text-sm outline-none focus:border-[var(--md-sys-color-primary)] transition-colors" placeholder="Message securely..." onkeypress="if(event.key === 'Enter') sendDirectMessage()">
             <button class="material-symbols-outlined text-[var(--md-sys-color-primary)] bg-[var(--md-sys-color-surface-variant)] p-2.5 flex-shrink-0 rounded-full active:scale-90 transition-transform" onclick="sendDirectMessage()">send</button>
         </div>
 
-        <!-- Floating Action Button for New Chat -->
         <div class="m3-fab max-w-md mx-auto" id="dm-new-chat-fab" onclick="openNewChatDialog()">
             <span class="material-symbols-outlined" style="font-size: 28px;">chat</span>
         </div>
@@ -478,6 +483,20 @@
         </div>
     </div>
 
+    <div id="dialog-confirm-delete" class="fixed inset-0 z-[100] bg-black/70 hidden items-center justify-center p-4">
+        <div class="w-full max-w-sm m3-card flex flex-col gap-4 bg-[var(--md-sys-color-surface-variant)] text-[var(--md-sys-color-on-surface-variant)] border border-[var(--md-sys-color-outline)]">
+            <h3 class="text-xl font-bold flex items-center gap-2 text-red-400">
+                <span class="material-symbols-outlined text-red-400">delete</span>
+                Delete Post?
+            </h3>
+            <p class="text-sm opacity-80">Are you sure you want to permanently delete this post? This action will also delete all associated comments and cannot be undone.</p>
+            <div class="flex justify-end gap-2 mt-4">
+                <button class="m3-button-text" onclick="closeDeleteModal()">Cancel</button>
+                <button class="m3-button-filled bg-red-600 hover:bg-red-700 text-white" id="btn-confirm-delete-action" onclick="executeDeletePost()">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <!-- GLOBAL BOTTOM NAV BAR -->
     <div id="global-bottom-nav" class="bottom-nav hidden">
         <div class="nav-tab active" id="tab-global" onclick="openTab('global')">
@@ -497,6 +516,17 @@
         </div>
     </div>
 
+    <!-- MENTION AUTOCOMPLETE PORTAL -->
+    <div id="mention-autocomplete"></div>
+
+    <!-- IMAGE LIGHTBOX VIEW -->
+    <div id="image-lightbox" class="fixed inset-0 z-[100] bg-black/95 hidden flex-col items-center justify-center p-4 cursor-pointer transition-opacity duration-300 opacity-0" onclick="closeImageLightbox()">
+        <div class="absolute top-6 right-6 bg-white/20 rounded w-10 h-10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white">close</span>
+        </div>
+        <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain rounded transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+    </div>
+
     <div id="snackbar">Message</div>
 
     <script>
@@ -508,6 +538,7 @@
         let currentProfileUser = null;
         let isFollowingCurrentProfile = false;
         let currentSelectedImage = null;
+        let currentDMSelectedImage = null;
         
         let posts = [];
         let pendingNewPosts = [];
@@ -523,6 +554,7 @@
         window.myPublicKey = null;
         window.publicKeyCache = {};
         window.sharedKeyCache = {};
+        let postToDeleteId = null;
 
         // --- CRYPTOGRAPHIC ENGINE UTILS ---
         const CryptoEngine = {
@@ -630,7 +662,6 @@
             }
         };
 
-        // Standard setup sequence for E2EE Direct Messaging
         async function setupNewKeys(password, username) {
             const keyPair = await CryptoEngine.generateKeyPair();
             const publicJwk = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
@@ -881,7 +912,6 @@
                 const data = await apiRequest('/login', { username: u, password: p }, false);
                 AuthStorage.save(data.token, u); 
 
-                // Process E2EE Credentials
                 showToast("Authenticating secure session...");
                 const aesKey = await CryptoEngine.deriveKeyFromPassword(p, u);
                 
@@ -897,7 +927,6 @@
                         showToast("Could not decrypt local direct-message keys.");
                     }
                 } else {
-                    // Seamless E2EE Upgrades for legacy database profiles
                     showToast("Upgrading account to zero-knowledge E2EE...");
                     const keys = await setupNewKeys(p, u);
                     await apiRequest('/users/upgrade_keys', {
@@ -927,7 +956,6 @@
             switchView('view-auth');
         }
 
-        // --- FEED RENDERING ENGINE ---
         function parseMentions(text) {
             const mentionPattern = /@([a-zA-Z0-9_]+)#([a-zA-Z0-9]{5})/g;
             return text.replace(mentionPattern, (match, username, userid) => {
@@ -956,6 +984,26 @@
             const parsedContent = parseMentions(post.content);
             const userAvatarLetter = AuthStorage.getUser().charAt(0).toUpperCase() || 'U';
 
+            const isAuthor = (post.author === AuthStorage.getUser());
+            const menuHtml = `
+                <div class="relative ml-auto">
+                    <span class="material-symbols-outlined cursor-pointer hover:opacity-80 p-1.5 rounded-full hover:bg-black/10 transition-colors" onclick="togglePostMenu(event, '${post.id}')" title="More Options">more_vert</span>
+                    <div id="post-menu-${post.id}" class="hidden absolute right-0 top-9 bg-[var(--md-sys-color-surface-variant)] border border-[var(--md-sys-color-outline)] rounded-lg shadow-lg py-1 w-36 z-30 overflow-hidden">
+                        ${isAuthor ? `
+                            <div class="flex items-center gap-2 px-3 py-2.5 text-sm text-red-400 hover:bg-black/20 cursor-pointer transition-colors" onclick="confirmDeletePost(event, '${post.id}')">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                                Delete Post
+                            </div>
+                        ` : `
+                            <div class="flex items-center gap-2 px-3 py-2.5 text-sm opacity-50 cursor-not-allowed">
+                                <span class="material-symbols-outlined text-sm">flag</span>
+                                Report Post
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+
             el.innerHTML = `
                 <div class="flex items-center gap-3 mb-3">
                     <div class="avatar-square cursor-pointer" style="background-color: ${avatarBg}" onclick="openProfile('${post.author}')">${post.author.charAt(0).toUpperCase()}</div>
@@ -963,6 +1011,7 @@
                         <div class="font-bold text-base cursor-pointer hover:underline inline-block" onclick="openProfile('${post.author}')">${post.author}</div>
                         <div class="text-xs opacity-70">${timeSince(post.timestamp)}</div>
                     </div>
+                    ${menuHtml}
                 </div>
                 <div class="text-[17px] leading-relaxed break-words whitespace-pre-wrap">${parsedContent}</div>
                 ${imgHtml}
@@ -977,6 +1026,9 @@
                             <span class="material-symbols-outlined">chat_bubble</span>
                             <span class="font-medium" id="count-comment-${post.id}">${post.comment_count || 0}</span>
                         </div>
+                    </div>
+                    <div class="action-btn" onclick="sharePost(event, '${post.id}')">
+                        <span class="material-symbols-outlined">share</span>
                     </div>
                 </div>
 
@@ -995,7 +1047,66 @@
             return el;
         }
 
-        // --- COMMENTS SYSTEMS ---
+        // --- MENU INTERACTORS ---
+        function togglePostMenu(event, postId) {
+            if (event) event.stopPropagation();
+            document.querySelectorAll('[id^="post-menu-"]').forEach(menu => {
+                if (menu.id !== `post-menu-${postId}`) {
+                    menu.classList.add('hidden');
+                }
+            });
+            const menu = document.getElementById(`post-menu-${postId}`);
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        window.addEventListener('click', function() {
+            document.querySelectorAll('[id^="post-menu-"]').forEach(menu => {
+                menu.classList.add('hidden');
+            });
+        });
+
+        function confirmDeletePost(event, postId) {
+            if (event) event.stopPropagation();
+            postToDeleteId = postId;
+            document.getElementById('dialog-confirm-delete').classList.remove('hidden');
+            document.getElementById('dialog-confirm-delete').classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            postToDeleteId = null;
+            document.getElementById('dialog-confirm-delete').classList.add('hidden');
+            document.getElementById('dialog-confirm-delete').classList.remove('flex');
+        }
+
+        async function executeDeletePost() {
+            if (!postToDeleteId) return;
+            const btn = document.getElementById('btn-confirm-delete-action');
+            btn.innerText = "Deleting...";
+            btn.disabled = true;
+            try {
+                await apiRequest('/posts/delete', { post_id: postToDeleteId });
+                showToast("Post deleted successfully.");
+                
+                const card = document.getElementById(`post-card-${postToDeleteId}`);
+                if (card) {
+                    card.style.transform = "scale(0.95)";
+                    card.style.opacity = "0";
+                    setTimeout(() => card.remove(), 300);
+                }
+                
+                delete postCache[postToDeleteId];
+                closeDeleteModal();
+            } catch (err) {
+                showToast("Failed to delete post: " + err.message);
+            } finally {
+                btn.innerText = "Delete";
+                btn.disabled = false;
+            }
+        }
+
+        // --- COMMENTS ENGINE ---
         async function toggleComments(event, postId) {
             if (event) event.stopPropagation();
             const section = document.getElementById(`comments-section-${postId}`);
@@ -1068,209 +1179,7 @@
             }
         }
 
-        // --- DIRECT MESSAGING VIEW HANDLERS ---
-        async function loadConversationsList() {
-            const container = document.getElementById('dm-content-area');
-            container.innerHTML = '<div class="text-center mt-10 opacity-70">Unlocking inbox...</div>';
-            
-            document.getElementById('dm-chat-input-bar').classList.add('hidden');
-            document.getElementById('dm-new-chat-fab').classList.remove('hidden');
-            document.getElementById('dm-header-back-container').style.display = 'none';
-            document.getElementById('dm-header-main-container').style.display = 'block';
-
-            activeChatUser = null;
-
-            try {
-                const data = await apiRequest('/dms/conversations', {});
-                container.innerHTML = '';
-
-                if (!data.conversations || data.conversations.length === 0) {
-                    container.innerHTML = '<div class="text-center mt-20 opacity-60">Your private inbox is empty.<br>Start a secure conversation!</div>';
-                    return;
-                }
-
-                // Decrypt latest message on client dynamically for localized previews
-                const renderedConversations = await Promise.all(data.conversations.map(async conv => {
-                    let previewText = "Encrypted direct message.";
-                    if (conv.latest_message) {
-                        const sharedKey = await getOrCreateSharedKey(conv.other_user);
-                        if (sharedKey) {
-                            previewText = await CryptoEngine.decryptMessage(
-                                conv.latest_message.encrypted_content,
-                                conv.latest_message.iv,
-                                sharedKey
-                            );
-                            if (previewText.length > 35) previewText = previewText.substring(0, 32) + "...";
-                        }
-                    }
-                    return { ...conv, previewText };
-                }));
-
-                renderedConversations.forEach(conv => {
-                    const card = document.createElement('div');
-                    card.className = 'm3-card flex items-center justify-between cursor-pointer hover:opacity-90 active:scale-[0.99] transition-transform';
-                    card.onclick = () => enterChatRoom(conv.other_user);
-
-                    const avatarBg = getAvatarColor(conv.other_user);
-                    const unreadBadge = conv.unread_count > 0 ? `
-                        <div class="bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] ml-auto">
-                            ${conv.unread_count}
-                        </div>
-                    ` : '';
-
-                    const timeStr = conv.latest_message ? timeSince(conv.latest_message.timestamp) : '';
-
-                    card.innerHTML = `
-                        <div class="flex items-center gap-3 flex-1 min-w-0">
-                            <div class="avatar-square" style="background-color: ${avatarBg}">${conv.other_user.charAt(0).toUpperCase()}</div>
-                            <div class="flex flex-col flex-1 min-w-0">
-                                <div class="font-bold text-base flex items-baseline gap-1">
-                                    <span class="truncate">${conv.other_user}</span>
-                                    <span class="text-xs opacity-50 font-normal">${timeStr}</span>
-                                </div>
-                                <div class="text-xs opacity-75 truncate italic text-[var(--md-sys-color-on-surface-variant)]">${conv.previewText}</div>
-                            </div>
-                        </div>
-                        ${unreadBadge}
-                    `;
-                    container.appendChild(card);
-                });
-
-            } catch (e) {
-                container.innerHTML = '<div class="text-center mt-10 text-red-400">Failed to decrypt direct conversations.</div>';
-            }
-        }
-
-        async function enterChatRoom(username) {
-            activeChatUser = username;
-            
-            document.getElementById('dm-new-chat-fab').classList.add('hidden');
-            document.getElementById('dm-chat-input-bar').classList.remove('hidden');
-            document.getElementById('dm-header-main-container').style.display = 'none';
-            
-            const backContainer = document.getElementById('dm-header-back-container');
-            backContainer.style.display = 'flex';
-            document.getElementById('dm-header-title').innerText = username;
-            
-            const avatarEl = document.getElementById('dm-active-avatar');
-            avatarEl.innerText = username.charAt(0).toUpperCase();
-            avatarEl.style.backgroundColor = getAvatarColor(username);
-
-            const list = document.getElementById('dm-content-area');
-            list.innerHTML = '<div class="text-center mt-10 opacity-70">Securing dynamic cryptographic keys...</div>';
-
-            await loadChatMessages(username);
-        }
-
-        function exitActiveChat() {
-            loadConversationsList();
-        }
-
-        async function loadChatMessages(targetUser) {
-            const list = document.getElementById('dm-content-area');
-            try {
-                const data = await apiRequest('/dms/list', { target_user: targetUser });
-                const sharedKey = await getOrCreateSharedKey(targetUser);
-                if (!sharedKey) {
-                    list.innerHTML = `<div class="text-center mt-10 text-red-400 p-4">Could not verify secure connectivity. Target user may not have E2EE direct-messages configured.</div>`;
-                    return;
-                }
-
-                // Decrypt message threads in parallel using AES-GCM
-                const decryptedMessages = await Promise.all(data.messages.map(async m => {
-                    const text = await CryptoEngine.decryptMessage(m.encrypted_content, m.iv, sharedKey);
-                    return { ...m, text };
-                }));
-
-                list.innerHTML = `<div class="flex flex-col gap-3 pb-24" id="chat-bubbles-container"></div>`;
-                const container = document.getElementById('chat-bubbles-container');
-
-                decryptedMessages.forEach(m => {
-                    const isMe = (m.sender === AuthStorage.getUser());
-                    const bubble = document.createElement('div');
-                    bubble.className = `flex flex-col max-w-[75%] ${isMe ? 'self-end items-end ml-auto' : 'self-start items-start mr-auto'}`;
-                    
-                    const timeStr = new Date(m.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    
-                    bubble.innerHTML = `
-                        <div class="px-4 py-2.5 rounded-2xl ${isMe ? 'bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] rounded-tr-none' : 'bg-black/10 text-[var(--md-sys-color-on-surface)] rounded-tl-none'} break-words text-[15px] leading-relaxed">
-                            ${m.text}
-                        </div>
-                        <span class="text-[10px] opacity-50 mt-1 px-1">${timeStr}</span>
-                    `;
-                    container.appendChild(bubble);
-                });
-
-                // Smooth scroll to latest thread position
-                const scrollArea = document.querySelector('#view-dms .scroll-area');
-                scrollArea.scrollTop = scrollArea.scrollHeight;
-
-            } catch (e) {
-                list.innerHTML = `<div class="text-center mt-10 text-red-400">Failed to decrypt messages.</div>`;
-            }
-        }
-
-        async function sendDirectMessage() {
-            if (!activeChatUser) return;
-            const input = document.getElementById('dm-message-input');
-            const text = input.value.trim();
-            if (!text) return;
-
-            input.disabled = true;
-            try {
-                const sharedKey = await getOrCreateSharedKey(activeChatUser);
-                if (!sharedKey) {
-                    showToast("Failed to verify secure recipient connection.");
-                    input.disabled = false;
-                    return;
-                }
-
-                // AES-GCM encrypt local browser text before transmitting
-                const encrypted = await CryptoEngine.encryptMessage(text, sharedKey);
-
-                await apiRequest('/dms/send', {
-                    receiver: activeChatUser,
-                    encrypted_content: encrypted.ciphertext,
-                    iv: encrypted.iv
-                });
-
-                input.value = '';
-                await loadChatMessages(activeChatUser);
-            } catch (e) {
-                showToast("Failed to encrypt direct message locally.");
-            } finally {
-                input.disabled = false;
-                input.focus();
-            }
-        }
-
-        function openNewChatDialog() {
-            document.getElementById('new-chat-username').value = '';
-            document.getElementById('dialog-new-chat').classList.remove('hidden');
-            document.getElementById('dialog-new-chat').classList.add('flex');
-        }
-
-        function closeNewChatDialog() {
-            document.getElementById('dialog-new-chat').classList.add('hidden');
-            document.getElementById('dialog-new-chat').classList.remove('flex');
-        }
-
-        async function startNewChat() {
-            const targetUsername = document.getElementById('new-chat-username').value.trim();
-            if (!targetUsername) return showToast("Enter a username.");
-            if (targetUsername === AuthStorage.getUser()) return showToast("You cannot message yourself.");
-
-            closeNewChatDialog();
-            showToast("Securing cryptographic exchange...");
-            const sharedKey = await getOrCreateSharedKey(targetUsername);
-            if (!sharedKey) {
-                showToast(`Recipient '${targetUsername}' does not support zero-knowledge E2EE messaging yet.`);
-                return;
-            }
-            enterChatRoom(targetUsername);
-        }
-
-        // --- FEED CHRONOLOGICAL POLLING ---
+        // --- FEED RENDERING ENGINE ---
         async function fetchFeedPosts(feedType) {
             const container = document.getElementById('main-feed-container');
             container.innerHTML = '<div class="text-center mt-10 opacity-70">Loading...</div>';
@@ -1280,26 +1189,6 @@
                 posts = data.posts || [];
                 pendingNewPosts = [];
                 hideNewPostsBubble();
-
-                if ('Notification' in window && Notification.permission === 'default' && AuthStorage.get()) {
-                    const promptCard = document.createElement('div');
-                    promptCard.id = 'push-prompt-card';
-                    promptCard.className = 'm3-card !bg-[var(--md-sys-color-primary-container)] !text-[var(--md-sys-color-on-primary-container)] mb-4 p-4 flex flex-col gap-3';
-                    promptCard.innerHTML = `
-                        <div class="flex items-start gap-3">
-                            <span class="material-symbols-outlined text-2xl text-[var(--md-sys-color-primary)]">notifications_active</span>
-                            <div class="flex-1">
-                                <div class="font-bold text-sm">Enable Push Notifications</div>
-                                <div class="text-xs opacity-90 mt-1">Don't miss a beat! Get instant alerts when friends post, tag you, or comment on your posts.</div>
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-2 mt-1">
-                            <button class="px-3 py-1.5 rounded text-xs font-medium bg-black/20 text-[var(--md-sys-color-on-primary-container)] transition-all active:scale-95" onclick="document.getElementById('push-prompt-card').remove()">Later</button>
-                            <button class="px-3 py-1.5 rounded text-xs font-semibold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] transition-all active:scale-95" onclick="enablePushPrompt()">Enable Now</button>
-                        </div>
-                    `;
-                    container.appendChild(promptCard);
-                }
 
                 if (feedType === 'following' && data.is_following_empty) {
                     container.innerHTML += `<div class="text-center mt-20 opacity-70 px-4">You aren't following anyone yet.<br><br>Switch to Explore!</div>`;
@@ -1368,8 +1257,7 @@
 
         function renderNewPostsAtTop(newBatch) {
             const container = document.getElementById('main-feed-container');
-            const promptCard = document.getElementById('push-prompt-card');
-            const insertBeforeNode = promptCard ? promptCard.nextSibling : container.firstChild;
+            const insertBeforeNode = container.firstChild;
             for (let i = newBatch.length - 1; i >= 0; i--) {
                 const el = createPostElement(newBatch[i]);
                 if (insertBeforeNode) container.insertBefore(el, insertBeforeNode);
@@ -1388,67 +1276,231 @@
 
         function showNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
-            bubble.classList.remove('hidden'); bubble.classList.add('flex');
+            if (bubble) {
+                bubble.classList.remove('hidden'); 
+                bubble.classList.add('flex');
+            }
         }
+
         function hideNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
-            bubble.classList.remove('flex'); bubble.classList.add('hidden');
+            if (bubble) {
+                bubble.classList.add('hidden'); 
+                bubble.classList.remove('flex');
+            }
         }
 
-        // --- CORE POST INTERACTIONS ---
-        async function toggleLike(event, postId) {
-            if (event) event.stopPropagation();
-            const post = postCache[postId];
-            if (!post) return;
+        // --- E2EE DIRECT MESSAGING SYSTEM ---
+        async function loadConversationsList() {
+            activeChatUser = null;
+            document.getElementById('dm-header-back-container').style.display = 'none';
+            document.getElementById('dm-header-main-container').style.display = 'block';
+            document.getElementById('dm-chat-input-bar').classList.add('hidden');
+            document.getElementById('dm-new-chat-fab').classList.remove('hidden');
+            clearDMImageSelection();
 
-            const isLiked = LikeStorage.has(postId);
-            const action = isLiked ? 'unlike' : 'like';
+            const container = document.getElementById('dm-content-area');
+            container.innerHTML = '<div class="text-center mt-10 opacity-60">Initializing secure threads...</div>';
 
-            const icon = document.getElementById(`icon-like-${postId}`);
-            const count = document.getElementById(`count-like-${postId}`);
-            const btn = document.getElementById(`btn-like-${postId}`);
+            try {
+                const data = await apiRequest('/dms/conversations', {});
+                container.innerHTML = '';
 
-            if (isLiked) {
-                LikeStorage.remove(postId);
-                post.likes = Math.max(0, (post.likes || 1) - 1);
-                icon.style.fontVariationSettings = "'FILL' 0";
-                icon.style.color = "inherit";
-                btn.classList.remove('liked');
-            } else {
-                LikeStorage.add(postId);
-                post.likes = (post.likes || 0) + 1;
-                icon.style.fontVariationSettings = "'FILL' 1";
-                icon.style.color = "#d93025";
-                btn.classList.add('liked');
+                if (!data.conversations || data.conversations.length === 0) {
+                    container.innerHTML = '<div class="text-center mt-20 opacity-60 px-4">No active encrypted conversations.<br><br>Tap the edit icon to initiate your first end-to-end encrypted chat!</div>';
+                    return;
+                }
+
+                for (const conv of data.conversations) {
+                    const otherUser = conv.other_user;
+                    const sharedKey = await getOrCreateSharedKey(otherUser);
+                    
+                    let previewText = "[Image Shared]";
+                    if (conv.latest_message && sharedKey) {
+                        const raw = await CryptoEngine.decryptMessage(
+                            conv.latest_message.encrypted_content,
+                            conv.latest_message.iv,
+                            sharedKey
+                        );
+                        if (!raw.startsWith("data:image/")) {
+                            previewText = raw.length > 30 ? raw.substring(0, 27) + "..." : raw;
+                        }
+                    } else {
+                        previewText = "Tap to initialize security keys...";
+                    }
+
+                    const unreadBadge = conv.unread_count > 0 ? `
+                        <div class="bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] font-bold text-xs rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
+                            ${conv.unread_count}
+                        </div>
+                    ` : '';
+
+                    const card = document.createElement('div');
+                    card.className = 'm3-card flex items-center justify-between cursor-pointer';
+                    card.onclick = () => openActiveChat(otherUser);
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="avatar-square" style="background-color: ${getAvatarColor(otherUser)}">${otherUser.charAt(0).toUpperCase()}</div>
+                            <div>
+                                <div class="font-bold text-base">${otherUser}</div>
+                                <div class="text-sm opacity-70">${previewText}</div>
+                            </div>
+                        </div>
+                        ${unreadBadge}
+                    `;
+                    container.appendChild(card);
+                }
+            } catch (err) {
+                container.innerHTML = '<div class="text-center text-red-400 mt-10">Unable to establish cryptographic paths.</div>';
             }
+        }
+
+        function openNewChatDialog() {
+            document.getElementById('new-chat-username').value = '';
+            document.getElementById('dialog-new-chat').classList.remove('hidden');
+            document.getElementById('dialog-new-chat').classList.add('flex');
+        }
+
+        function closeNewChatDialog() {
+            document.getElementById('dialog-new-chat').classList.add('hidden');
+            document.getElementById('dialog-new-chat').classList.remove('flex');
+        }
+
+        async function startNewChat() {
+            const target = document.getElementById('new-chat-username').value.trim();
+            if (!target) return showToast("Username cannot be empty");
+            if (target === AuthStorage.getUser()) return showToast("You cannot message yourself");
+
+            closeNewChatDialog();
+            openActiveChat(target);
+        }
+
+        async function openActiveChat(username) {
+            activeChatUser = username;
             
-            count.innerText = post.likes;
+            // Layout Adjustments
+            document.getElementById('dm-header-back-container').style.display = 'flex';
+            document.getElementById('dm-header-main-container').style.display = 'none';
+            document.getElementById('dm-active-avatar').innerText = username.charAt(0).toUpperCase();
+            document.getElementById('dm-active-avatar').style.backgroundColor = getAvatarColor(username);
+            document.getElementById('dm-header-title').innerText = username;
+
+            document.getElementById('dm-chat-input-bar').classList.remove('hidden');
+            document.getElementById('dm-new-chat-fab').classList.add('hidden');
+
+            const container = document.getElementById('dm-content-area');
+            container.innerHTML = '<div class="text-center mt-10 opacity-60">Handshaking keys...</div>';
+
+            const sharedKey = await getOrCreateSharedKey(username);
+            if (!sharedKey) {
+                container.innerHTML = '<div class="text-center text-red-400 mt-10">Peer public key not registered on this server.</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="text-center opacity-60 mt-10">Syncing chat logs...</div>';
+            syncActiveChatLoop();
+        }
+
+        async function syncActiveChatLoop() {
+            if (!activeChatUser) return;
+            const target = activeChatUser;
 
             try {
-                await apiRequest('/posts/like', { post_id: postId, action: action });
+                const data = await apiRequest('/dms/list', { target_user: target });
+                if (activeChatUser !== target) return; 
+
+                const container = document.getElementById('dm-content-area');
+                container.innerHTML = '';
+
+                if (data.messages.length === 0) {
+                    container.innerHTML = '<div class="text-center mt-20 opacity-50">This is the start of your secure conversation history.</div>';
+                } else {
+                    const sharedKey = await getOrCreateSharedKey(target);
+                    for (const m of data.messages) {
+                        const isSelf = m.sender === AuthStorage.getUser();
+                        const decrypted = await CryptoEngine.decryptMessage(m.encrypted_content, m.iv, sharedKey);
+                        
+                        let displayBody = `<div class="break-words">${decrypted}</div>`;
+                        if (decrypted.startsWith("data:image/")) {
+                            displayBody = `
+                                <div class="max-w-xs rounded overflow-hidden cursor-pointer" onclick="openImageLightbox('${decrypted}')">
+                                    <img src="${decrypted}" class="w-full h-auto max-h-48 object-cover">
+                                </div>
+                            `;
+                        }
+
+                        const wrapper = document.createElement('div');
+                        wrapper.className = `flex w-full mb-3 ${isSelf ? 'justify-end' : 'justify-start'}`;
+                        wrapper.innerHTML = `
+                            <div class="max-w-[70%] p-3 rounded-2xl ${isSelf ? 'bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] rounded-tr-none' : 'bg-black/20 text-[var(--md-sys-color-on-surface)] rounded-tl-none'}">
+                                ${displayBody}
+                                <div class="text-[10px] opacity-50 mt-1 text-right">${new Date(m.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            </div>
+                        `;
+                        container.appendChild(wrapper);
+                    }
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (err) {}
+
+            // Loop sync checks every 5 seconds
+            setTimeout(syncActiveChatLoop, 5000);
+        }
+
+        async function sendDirectMessage() {
+            const input = document.getElementById('dm-message-input');
+            const text = input.value.trim();
+            if (!text && !currentDMSelectedImage) return;
+
+            const target = activeChatUser;
+            const sharedKey = await getOrCreateSharedKey(target);
+            if (!sharedKey) return showToast("Missing shared secret key");
+
+            input.value = '';
+            const dataToEncrypt = currentDMSelectedImage || text;
+            clearDMImageSelection();
+
+            try {
+                const enc = await CryptoEngine.encryptMessage(dataToEncrypt, sharedKey);
+                await apiRequest('/dms/send', {
+                    receiver: target,
+                    encrypted_content: enc.ciphertext,
+                    iv: enc.iv
+                });
+                
+                // Instantly sync logs
+                syncActiveChatLoop();
             } catch (err) {
-                console.error("Failed to sync like action with backend database:", err);
+                showToast("Failed to transmit securely.");
             }
         }
 
-        function sharePost(postId) {
-            const post = postCache[postId];
-            if (!post) return;
-            const textToShare = `"${post.content}" - shared by @${post.author} on Soshal`;
-            try {
-                const el = document.createElement('textarea');
-                el.value = textToShare;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-                showToast("Text copied to clipboard!");
-            } catch (err) {
-                showToast("Failed to secure local clipboard context.");
-            }
+        function exitActiveChat() {
+            activeChatUser = null;
+            loadConversationsList();
         }
 
-        // --- SEARCH ENGINE ---
+        // --- E2EE ATTACHMENTS SYSTEM ---
+        function handleDMImageSelection(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentDMSelectedImage = e.target.result;
+                document.getElementById('dm-image-preview').src = currentDMSelectedImage;
+                document.getElementById('dm-image-preview-container').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearDMImageSelection() {
+            currentDMSelectedImage = null;
+            document.getElementById('dm-image-input').value = "";
+            document.getElementById('dm-image-preview').src = "";
+            document.getElementById('dm-image-preview-container').classList.add('hidden');
+        }
+
+        // --- SEARCH ENGINE INTERACTION ---
         function setSearchType(type) {
             currentSearchType = type;
             const btnPosts = document.getElementById('search-type-posts');
@@ -1592,7 +1644,7 @@
             }
         }
 
-        // --- PUSH SYSTEMS AND SERVICE WORKER ---
+        // --- PUSH NOTIFICATION SETTINGS ---
         async function enablePushPrompt() {
             const card = document.getElementById('push-prompt-card');
             showToast("Requesting push permission...");
@@ -1616,8 +1668,8 @@
         }
 
         function closeNotificationSettings() {
-            document.getElementById('dialog-notifications').classList.add('hidden');
             document.getElementById('dialog-notifications').classList.remove('flex');
+            document.getElementById('dialog-notifications').classList.add('hidden');
         }
 
         async function saveNotificationSettings() {
@@ -1712,7 +1764,7 @@
 
         function closeMentionAutocomplete() { document.getElementById('mention-autocomplete').style.display = 'none'; }
 
-        // --- GENERAL MEDIA UTILS ---
+        // --- GENERAL POST UTILITIES ---
         function handleImageSelection(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1767,6 +1819,62 @@
             lightbox.classList.remove('opacity-100'); lightbox.classList.add('opacity-0');
             img.classList.remove('scale-100'); img.classList.add('scale-95');
             setTimeout(() => { lightbox.classList.add('hidden'); lightbox.classList.remove('flex'); img.src = ''; }, 300);
+        }
+
+        async function toggleLike(event, postId) {
+            if (event) event.stopPropagation();
+            const post = postCache[postId];
+            if (!post) return;
+
+            const isLiked = LikeStorage.has(postId);
+            const action = isLiked ? 'unlike' : 'like';
+
+            const icons = document.querySelectorAll(`#icon-like-${postId}`);
+            const counts = document.querySelectorAll(`#count-like-${postId}`);
+            const btns = document.querySelectorAll(`#btn-like-${postId}`);
+
+            if (isLiked) {
+                LikeStorage.remove(postId);
+                post.likes = Math.max(0, (post.likes || 1) - 1);
+                icons.forEach(i => { i.style.fontVariationSettings = "'FILL' 0"; i.style.color = "inherit"; });
+                btns.forEach(b => b.classList.remove('liked'));
+            } else {
+                LikeStorage.add(postId);
+                post.likes = (post.likes || 0) + 1;
+                icons.forEach(i => { 
+                    i.style.fontVariationSettings = "'FILL' 1"; 
+                    i.style.color = "#d93025"; 
+                    i.style.transform = "scale(1.3)";
+                    setTimeout(() => i.style.transform = "scale(1)", 200);
+                });
+                btns.forEach(b => b.classList.add('liked'));
+            }
+            
+            counts.forEach(c => c.innerText = post.likes);
+
+            try {
+                await apiRequest('/posts/like', { post_id: postId, action: action });
+            } catch (err) {
+                console.error("Like sync failed", err);
+            }
+        }
+
+        function sharePost(event, postId) {
+            if (event) event.stopPropagation();
+            const post = postCache[postId];
+            if (!post) return;
+            const textToShare = `"${post.content}" - ${post.author} on Soshal`;
+            try {
+                const el = document.createElement('textarea');
+                el.value = textToShare;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                showToast("Couldn't copy text.");
+            }
         }
     </script>
 </body>
