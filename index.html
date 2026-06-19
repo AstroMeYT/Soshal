@@ -225,6 +225,35 @@
 
         .hidden-by-default { display: none !important; }
         .app-container.active.hidden-by-default { display: flex !important; }
+
+        /* Floating New Posts Bubble style */
+        #new-posts-bubble {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            z-index: 45;
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: var(--md-elevation-3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: transform 0.2s, opacity 0.2s;
+            animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #new-posts-bubble:active {
+            transform: scale(0.92);
+        }
+
+        @keyframes bounceIn {
+            from { transform: translateY(20px) scale(0.8); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -245,13 +274,22 @@
     </div>
 
     <!-- MAIN SCROLLING FEED VIEW -->
-    <div id="view-main" class="app-container hidden-by-default bg-[var(--md-sys-color-surface)]">
+    <div id="view-main" class="app-container hidden-by-default bg-[var(--md-sys-color-surface)] relative">
         <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm">
             <div class="flex justify-between items-center max-w-md mx-auto">
                 <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-primary)" id="feed-title">Explore</h1>
             </div>
         </div>
+        
+        <!-- Live scrolling posts container -->
         <div class="scroll-area w-full max-w-md mx-auto" id="main-feed-container"></div>
+        
+        <!-- "New Posts" floating bubble -->
+        <div id="new-posts-bubble" class="hidden" onclick="loadPendingNewPosts()">
+            <span class="material-symbols-outlined font-bold text-sm">arrow_upward</span>
+            New Posts
+        </div>
+
         <div class="m3-fab max-w-md mx-auto" onclick="switchView('view-create')">
             <span class="material-symbols-outlined" style="font-size: 28px;">edit</span>
         </div>
@@ -283,7 +321,7 @@
                     <h2 class="text-xl font-bold" id="profile-header-title">Profile</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    <!-- Notification settings trigger (Always-on troubleshooting configuration) -->
+                    <!-- Notification settings trigger -->
                     <span class="material-symbols-outlined cursor-pointer text-yellow-400 hidden" id="profile-bell-btn" onclick="openNotificationSettings()" title="Notification Settings">notifications</span>
                     <span class="material-symbols-outlined cursor-pointer text-red-400" id="profile-logout-btn" onclick="logout()" title="Logout">logout</span>
                 </div>
@@ -335,12 +373,13 @@
                 </div>
             </div>
             
-            <div class="flex border-t border-[var(--md-sys-color-outline)] pt-4 mt-auto pb-4">
-                <!-- Using absolute positioned 1x1px layout hidden from layout flow prevents browser engines from treating labels as non-interactive elements -->
-                <input type="file" id="image-input" accept="image/*" style="opacity: 0; width: 0.1px; height: 0.1px; position: absolute; z-index: -1;" onchange="handleImageSelection(event)">
-                <label for="image-input" class="action-btn cursor-pointer select-none active:scale-95 transition-transform" style="background-color: var(--md-sys-color-surface-variant); display: flex; align-items: center; gap: 6px;">
-                    <span class="material-symbols-outlined">image</span> Add Image
-                </label>
+            <div class="flex flex-col border-t border-[var(--md-sys-color-outline)] pt-4 mt-auto pb-4 gap-2">
+                <span class="text-xs opacity-75 font-medium flex items-center gap-1">
+                    <span class="material-symbols-outlined text-base">attach_file</span>
+                    Attach Photo (Optional):
+                </span>
+                <!-- Clean, highly reliable native browser file input that works on all mobile and desktop browsers natively -->
+                <input type="file" id="image-input" accept="image/*" class="w-full text-sm text-[var(--md-sys-color-on-surface-variant)] file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-[var(--md-sys-color-primary-container)] file:text-[var(--md-sys-color-on-primary-container)] hover:file:opacity-95 active:file:scale-95 transition-all" onchange="handleImageSelection(event)">
             </div>
         </div>
     </div>
@@ -422,11 +461,16 @@
         // Push VAPID Public Key - Mathematically valid uncompressed P-256 standard base64url key
         const PUBLIC_VAPID_KEY = "BDrsEIWlTy1YTAZxpkN1f1C0EcuCjL15j8lxS3KaXzDE_BvlWIHEIGdmsP3hfiiG3ldbF89pWEc6foyFxSOe5es";
 
-        let isSignupMode = false; // Declaring the missing auth toggle state variable
+        let isSignupMode = false; 
         let currentTab = 'global';
         let currentProfileUser = null;
         let isFollowingCurrentProfile = false;
         let currentSelectedImage = null;
+        
+        // Feed Cache & Background Polling arrays
+        let posts = [];
+        let pendingNewPosts = [];
+        let pollInterval = null;
         
         let postCache = {}; 
         let currentSearchType = 'posts';
@@ -481,8 +525,8 @@
             if (AuthStorage.get()) {
                 document.getElementById('global-bottom-nav').classList.remove('hidden');
                 openTab('global');
-                // Silently register the background Service Worker and listen for updates
                 registerServiceWorker();
+                startPolling();
             } else {
                 switchView('view-auth');
             }
@@ -514,6 +558,11 @@
         // --- BOTTOM NAV TABS ---
         function openTab(tabName) {
             currentTab = tabName;
+            
+            // Clean active background indicators
+            hideNewPostsBubble();
+            pendingNewPosts = [];
+
             ['global', 'following', 'search', 'profile'].forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const icon = document.getElementById(`icon-${t}`);
@@ -530,11 +579,16 @@
                 switchView('view-main');
                 document.getElementById('feed-title').innerText = tabName === 'global' ? 'Explore' : 'Following';
                 fetchFeedPosts(tabName);
-            } else if (tabName === 'search') {
-                switchView('view-search');
-                performSearch();
-            } else if (tabName === 'profile') {
-                openProfile(AuthStorage.getUser());
+                startPolling();
+            } else {
+                // Stop polling if we go away from main feeds to optimize resources
+                stopPolling();
+                if (tabName === 'search') {
+                    switchView('view-search');
+                    performSearch();
+                } else if (tabName === 'profile') {
+                    openProfile(AuthStorage.getUser());
+                }
             }
         }
 
@@ -614,6 +668,7 @@
                 document.getElementById('global-bottom-nav').classList.remove('hidden');
                 openTab('global');
                 registerServiceWorker();
+                startPolling();
             } catch (err) {
                 showToast(err.message);
             }
@@ -622,6 +677,7 @@
         async function logout() {
             try { await apiRequest('/logout', {}); } catch (e) {}
             AuthStorage.clear();
+            stopPolling();
             document.getElementById('global-bottom-nav').classList.add('hidden');
             switchView('view-auth');
         }
@@ -685,7 +741,10 @@
             try {
                 const data = await apiRequest('/posts/list', { limit: 50, feed_type: feedType });
                 container.innerHTML = '';
-                
+                posts = data.posts || [];
+                pendingNewPosts = [];
+                hideNewPostsBubble();
+
                 // Embed contextual Push Prompt Card right inside the feeds if permissions are not resolved
                 if ('Notification' in window && Notification.permission === 'default' && AuthStorage.get()) {
                     const promptCard = document.createElement('div');
@@ -711,11 +770,11 @@
                     container.innerHTML += `<div class="text-center mt-20 opacity-70 px-4">You aren't following anyone yet.<br><br>Switch to Explore!</div>`;
                     return;
                 }
-                if (!data.posts || data.posts.length === 0) {
+                if (posts.length === 0) {
                     container.innerHTML += '<div class="text-center mt-20 opacity-70">No posts found.</div>';
                     return;
                 }
-                data.posts.forEach((post, index) => {
+                posts.forEach(post => {
                     const el = createPostElement(post);
                     container.appendChild(el);
                 });
@@ -723,6 +782,111 @@
                 if(err.message.includes("Invalid or expired token")) logout();
                 else container.innerHTML = '<div class="text-center mt-10 text-red-400">Could not connect to server.</div>';
             }
+        }
+
+        // --- BACKGROUND RE-INDEX & PASSIVE UPDATES ---
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                if (currentTab === 'global' || currentTab === 'following') {
+                    await checkForNewPosts();
+                }
+            }, 15000); // Check for new posts every 15 seconds
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        async function checkForNewPosts() {
+            try {
+                const data = await apiRequest('/posts/list', { limit: 50, feed_type: currentTab });
+                const latestPosts = data.posts || [];
+                if (latestPosts.length === 0) return;
+
+                const currentNewestId = posts.length > 0 ? posts[0].id : null;
+                if (!currentNewestId) return;
+
+                // Find if the currently loaded newest post exists in the fresh batch
+                const firstOldIndex = latestPosts.findIndex(p => p.id === currentNewestId);
+
+                if (firstOldIndex > 0) {
+                    // New posts have arrived!
+                    const newBatch = latestPosts.slice(0, firstOldIndex);
+                    const container = document.getElementById('main-feed-container');
+                    
+                    if (container.scrollTop < 120) {
+                        // User is near the top of the screen; merge and render naturally
+                        posts = [...newBatch, ...posts];
+                        renderNewPostsAtTop(newBatch);
+                    } else {
+                        // User is actively reading down. Accumulate in queue and show bubble
+                        pendingNewPosts = [...newBatch, ...pendingNewPosts];
+                        
+                        // Eliminate duplicates in the pending queue
+                        const uniquePending = [];
+                        const seenIds = new Set();
+                        pendingNewPosts.forEach(p => {
+                            if (!seenIds.has(p.id)) {
+                                seenIds.add(p.id);
+                                uniquePending.push(p);
+                            }
+                        });
+                        pendingNewPosts = uniquePending;
+                        
+                        showNewPostsBubble();
+                    }
+                }
+            } catch (err) {
+                console.warn("Background poll failed quietly:", err);
+            }
+        }
+
+        function renderNewPostsAtTop(newBatch) {
+            const container = document.getElementById('main-feed-container');
+            const promptCard = document.getElementById('push-prompt-card');
+            
+            // Determine inserting placement (directly after push prompt card or at top)
+            const insertBeforeNode = promptCard ? promptCard.nextSibling : container.firstChild;
+
+            // Render batch chronologically (reversed so top stays newest)
+            for (let i = newBatch.length - 1; i >= 0; i--) {
+                const el = createPostElement(newBatch[i]);
+                if (insertBeforeNode) {
+                    container.insertBefore(el, insertBeforeNode);
+                } else {
+                    container.appendChild(el);
+                }
+            }
+        }
+
+        function loadPendingNewPosts() {
+            if (pendingNewPosts.length === 0) return;
+
+            posts = [...pendingNewPosts, ...posts];
+            renderNewPostsAtTop(pendingNewPosts);
+            pendingNewPosts = [];
+
+            // Smooth scroll to the top of the feed container
+            const container = document.getElementById('main-feed-container');
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+
+            hideNewPostsBubble();
+        }
+
+        function showNewPostsBubble() {
+            const bubble = document.getElementById('new-posts-bubble');
+            bubble.classList.remove('hidden');
+            bubble.classList.add('flex');
+        }
+
+        function hideNewPostsBubble() {
+            const bubble = document.getElementById('new-posts-bubble');
+            bubble.classList.remove('flex');
+            bubble.classList.add('hidden');
         }
 
         // --- SEARCH ---
@@ -837,7 +1001,7 @@
                 container.innerHTML = '';
                 
                 if (postsData.posts.length === 0) {
-                    container.innerHTML = '<div class="text-center mt-8 opacity-70">No posts yet.</div>';
+                    container.innerHTML = '<div class="text-center mt-8 opacity-70 text-sm">No posts yet.</div>';
                 } else {
                     postsData.posts.forEach(post => {
                         const el = createPostElement(post);
@@ -956,7 +1120,6 @@
                 throw new Error("Push not supported on this browser/wrapper");
             }
 
-            // Order of execution corrected: Request permissions *before* waiting for ready blocks
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 throw new Error("Notification permission denied");
