@@ -342,7 +342,7 @@
             </div>
         </div>
 
-        <div id="dm-chat-input-bar" class="hidden w-full bg-[var(--md-sys-color-surface)] p-3 border-t border-[var(--md-sys-color-outline)] z-30 flex items-center gap-2 max-w-md mx-auto flex-shrink-0 pb-safe">
+        <div id="dm-chat-input-bar" class="hidden w-full bg-[var(--md-sys-color-surface)] p-3 pb-5 border-t border-[var(--md-sys-color-outline)] z-30 flex items-center gap-2 max-w-md mx-auto flex-shrink-0 pb-safe">
             <button class="material-symbols-outlined text-[var(--md-sys-color-on-surface-variant)] bg-[var(--md-sys-color-surface-variant)] p-2.5 rounded-full active:scale-90 transition-transform" onclick="document.getElementById('dm-image-input').click()">attach_file</button>
             <input type="file" id="dm-image-input" accept="image/*" class="hidden" onchange="handleDMImageSelection(event)">
             
@@ -478,7 +478,7 @@
             <input type="text" id="new-chat-username" class="m3-input !rounded-lg" placeholder="Username (case-sensitive)">
             <div class="flex justify-end gap-2 mt-4">
                 <button class="m3-button-text" onclick="closeNewChatDialog()">Cancel</button>
-                <button class="m3-button-filled animate-pulse" onclick="startNewChat()">Start Chat</button>
+                <button class="m3-button-filled" onclick="startNewChat()">Start Chat</button>
             </div>
         </div>
     </div>
@@ -780,7 +780,12 @@
             if(viewId === 'view-auth' || viewId === 'view-create') {
                 document.getElementById('global-bottom-nav').style.display = 'none';
             } else {
-                document.getElementById('global-bottom-nav').style.display = 'flex';
+                // If we are exiting to another tab, but not view-dms active chat
+                if (activeChatUser) {
+                    document.getElementById('global-bottom-nav').style.display = 'none';
+                } else {
+                    document.getElementById('global-bottom-nav').style.display = 'flex';
+                }
             }
         }
 
@@ -1282,6 +1287,7 @@
             }
         }
 
+        // --- SYSTEM HIDE ACTIONS ---
         function hideNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
             if (bubble) {
@@ -1297,6 +1303,7 @@
             document.getElementById('dm-header-main-container').style.display = 'block';
             document.getElementById('dm-chat-input-bar').classList.add('hidden');
             document.getElementById('dm-new-chat-fab').classList.remove('hidden');
+            document.getElementById('global-bottom-nav').style.display = 'flex'; // Ensure the nav is back when looking at list
             clearDMImageSelection();
 
             const container = document.getElementById('dm-content-area');
@@ -1378,7 +1385,9 @@
         async function openActiveChat(username) {
             activeChatUser = username;
             
-            // Layout Adjustments
+            // Layout Adjustments - Hide main navigation tab bar to prevent overlap with input area
+            document.getElementById('global-bottom-nav').style.display = 'none';
+
             document.getElementById('dm-header-back-container').style.display = 'flex';
             document.getElementById('dm-header-main-container').style.display = 'none';
             document.getElementById('dm-active-avatar').innerText = username.charAt(0).toUpperCase();
@@ -1477,6 +1486,8 @@
 
         function exitActiveChat() {
             activeChatUser = null;
+            // Restore main navigation tab bar
+            document.getElementById('global-bottom-nav').style.display = 'flex';
             loadConversationsList();
         }
 
@@ -1667,6 +1678,7 @@
             document.getElementById('dialog-notifications').classList.add('flex');
         }
 
+        // --- CLOSE NOTIFICATIONS ---
         function closeNotificationSettings() {
             document.getElementById('dialog-notifications').classList.remove('flex');
             document.getElementById('dialog-notifications').classList.add('hidden');
