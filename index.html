@@ -336,8 +336,8 @@
             </div>
             
             <div class="flex border-t border-[var(--md-sys-color-outline)] pt-4 mt-auto pb-4">
-                <input type="file" id="image-input" accept="image/*" class="hidden" onchange="handleImageSelection(event)">
-                <!-- Native Label trigger styled as button bypasses mobile browser security flags -->
+                <!-- Using absolute positioned 1x1px layout hidden from layout flow prevents browser engines from treating labels as non-interactive elements -->
+                <input type="file" id="image-input" accept="image/*" style="opacity: 0; width: 0.1px; height: 0.1px; position: absolute; z-index: -1;" onchange="handleImageSelection(event)">
                 <label for="image-input" class="action-btn cursor-pointer select-none active:scale-95 transition-transform" style="background-color: var(--md-sys-color-surface-variant); display: flex; align-items: center; gap: 6px;">
                     <span class="material-symbols-outlined">image</span> Add Image
                 </label>
@@ -628,7 +628,6 @@
 
         // --- RENDER POST COMPONENT WITH MENTIONS parsing ---
         function parseMentions(text) {
-            // Converts @Username#userid syntax into interactive elements
             const mentionPattern = /@([a-zA-Z0-9_]+)#([a-zA-Z0-9]{5})/g;
             return text.replace(mentionPattern, (match, username, userid) => {
                 return `<span class="text-[var(--md-sys-color-primary)] font-bold cursor-pointer hover:underline" onclick="event.stopPropagation(); openProfile('${username}')">@${username}</span>`;
@@ -846,7 +845,6 @@
                     });
                 }
             } catch(e) {
-                // Keep layout functional and always expose troubleshooting controls on failure
                 document.getElementById('profile-posts-container').innerHTML = `
                     <div class="text-center mt-8 text-red-400 p-4">
                         Unable to pull data from server.<br>
@@ -958,11 +956,13 @@
                 throw new Error("Push not supported on this browser/wrapper");
             }
 
-            const reg = await navigator.serviceWorker.ready;
+            // Order of execution corrected: Request permissions *before* waiting for ready blocks
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 throw new Error("Notification permission denied");
             }
+
+            const reg = await navigator.serviceWorker.ready;
 
             // Unsubscribe existing to avoid conflicts
             const existingSub = await reg.pushManager.getSubscription();
