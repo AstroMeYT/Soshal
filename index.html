@@ -89,9 +89,9 @@
         .app-container {
             display: none;
             flex-direction: column;
-            height: 100vh;
+            height: 100dvh;
             width: 100vw;
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
         }
@@ -108,8 +108,10 @@
         .scroll-area {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 16px;
-            padding-bottom: 100px;
+            padding-bottom: 120px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .bottom-nav {
