@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soshal - Scroll Edition</title>
+    <title>Soshal</title>
     
     <!-- Material Symbols & Roboto Font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
+        /* Material 3 Dark Theme */
         :root {
             --md-sys-color-primary: #D0BCFF;
             --md-sys-color-on-primary: #381E72;
@@ -25,7 +26,7 @@
             --md-sys-color-outline: #938F99;
             --md-elevation-1: 0px 1px 3px 1px rgba(0,0,0,0.4), 0px 1px 2px 0px rgba(0,0,0,0.5);
             --md-elevation-3: 0px 4px 8px 3px rgba(0,0,0,0.5), 0px 1px 3px 0px rgba(0,0,0,0.6);
-            --border-rad: 8px; /* Sharper global border radius */
+            --border-rad: 8px;
         }
 
         body {
@@ -34,19 +35,13 @@
             color: var(--md-sys-color-on-surface);
             margin: 0;
             padding: 0;
-            overscroll-behavior-y: none; /* Prevents pull-to-refresh blank space */
+            overscroll-behavior-y: none;
         }
 
-        /* Hide scrollbars globally for a native app feel */
-        ::-webkit-scrollbar {
-            display: none;
-        }
-        * {
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
-        }
+        /* Hide Scrollbars */
+        ::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
 
-        /* Material 3 Sharpened Components */
         .m3-card {
             background-color: var(--md-sys-color-surface-variant);
             border-radius: var(--border-rad);
@@ -66,14 +61,7 @@
             outline: none;
             transition: border-bottom-color 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
-        .m3-input::placeholder, #create-post-content::placeholder {
-            color: var(--md-sys-color-on-surface-variant);
-            opacity: 0.7;
-        }
-        .m3-input:focus {
-            border-bottom: 2px solid var(--md-sys-color-primary);
-            padding-bottom: 15px; 
-        }
+        .m3-input:focus { border-bottom: 2px solid var(--md-sys-color-primary); padding-bottom: 15px; }
 
         .m3-button-filled {
             background-color: var(--md-sys-color-primary);
@@ -84,11 +72,7 @@
             text-align: center;
             transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
-        .m3-button-filled:active {
-            box-shadow: var(--md-elevation-1);
-            opacity: 0.9;
-            transform: scale(0.96);
-        }
+        .m3-button-filled:active { box-shadow: var(--md-elevation-1); opacity: 0.9; transform: scale(0.96); }
 
         .m3-button-text {
             color: var(--md-sys-color-primary);
@@ -97,12 +81,8 @@
             font-weight: 500;
             transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
-        .m3-button-text:active {
-            background-color: rgba(208, 188, 255, 0.1);
-            transform: scale(0.98);
-        }
+        .m3-button-text:active { background-color: rgba(208, 188, 255, 0.1); transform: scale(0.98); }
 
-        /* App Layout Architecture & Animations */
         .app-container {
             display: none;
             flex-direction: column;
@@ -112,7 +92,6 @@
             top: 0;
             left: 0;
         }
-        
         .app-container.active { 
             display: flex; 
             animation: viewEnter 0.4s cubic-bezier(0.2, 0, 0, 1) forwards;
@@ -123,19 +102,13 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .fade-up-item {
-            animation: viewEnter 0.4s cubic-bezier(0.2, 0, 0, 1) forwards;
-            opacity: 0;
-        }
-
         .scroll-area {
             flex: 1;
             overflow-y: auto;
             padding: 16px;
-            padding-bottom: 100px; /* Space for FAB and Nav */
+            padding-bottom: 100px;
         }
 
-        /* Bottom Navigation Bar */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -161,21 +134,8 @@
             transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
             -webkit-tap-highlight-color: transparent;
         }
+        .nav-tab.active { color: var(--md-sys-color-primary); }
 
-        .nav-tab:active {
-            transform: scale(0.85);
-        }
-
-        .nav-tab.active {
-            color: var(--md-sys-color-primary);
-        }
-
-        .nav-tab .material-symbols-outlined {
-            font-size: 28px;
-            transition: font-variation-settings 0.3s cubic-bezier(0.2, 0, 0, 1);
-        }
-
-        /* Floating Action Button (Square-ish) */
         .m3-fab {
             position: fixed;
             bottom: 80px;
@@ -192,11 +152,8 @@
             cursor: pointer;
             transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
             z-index: 40;
-            -webkit-tap-highlight-color: transparent;
         }
-        .m3-fab:active { transform: scale(0.9); }
 
-        /* Post Interactions */
         .action-btn {
             display: flex;
             align-items: center;
@@ -205,16 +162,10 @@
             border-radius: var(--border-rad);
             color: var(--md-sys-color-on-surface-variant);
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
-            -webkit-tap-highlight-color: transparent;
-        }
-        .action-btn:active { 
-            background-color: rgba(255, 255, 255, 0.05); 
-            transform: scale(0.92);
+            transition: all 0.2s;
         }
         .action-btn.liked { color: #d93025; }
 
-        /* Sharper Avatar */
         .avatar-square {
             width: 40px;
             height: 40px;
@@ -226,11 +177,32 @@
             justify-content: center;
             font-weight: bold;
             font-size: 18px;
-            transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
         }
-        .avatar-square:active { transform: scale(0.9); }
 
-        /* Snackbar */
+        /* Autocomplete Mention Popover */
+        #mention-autocomplete {
+            position: fixed;
+            z-index: 100;
+            background-color: var(--md-sys-color-surface-variant);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: var(--border-rad);
+            box-shadow: var(--md-elevation-3);
+            max-height: 160px;
+            overflow-y: auto;
+            width: 220px;
+            display: none;
+        }
+
+        .mention-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .mention-item:hover { background-color: rgba(255, 255, 255, 0.08); }
+
         #snackbar {
             visibility: hidden;
             min-width: 250px;
@@ -247,10 +219,7 @@
             font-size: 14px;
             box-shadow: var(--md-elevation-3);
         }
-        #snackbar.show {
-            visibility: visible;
-            animation: fadein 0.3s, fadeout 0.3s 2.5s;
-        }
+        #snackbar.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 2.5s; }
         @keyframes fadein { from {bottom: 60px; opacity: 0;} to {bottom: 80px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 80px; opacity: 1;} to {bottom: 60px; opacity: 0;} }
 
@@ -265,7 +234,7 @@
         <h1 class="text-4xl font-bold mb-8" style="color: var(--md-sys-color-primary)">Soshal</h1>
         <div class="w-full max-w-sm m3-card flex flex-col gap-4">
             <h2 id="auth-title" class="text-xl font-medium mb-2">Login</h2>
-            <input type="text" id="auth-server" class="m3-input" placeholder="Server Address (ngrok/local)">
+            <input type="text" id="auth-server" class="m3-input" placeholder="Server Address">
             <input type="text" id="auth-username" class="m3-input" placeholder="Username">
             <input type="password" id="auth-password" class="m3-input" placeholder="Password">
             <div class="mt-4 flex flex-col gap-2">
@@ -275,21 +244,14 @@
         </div>
     </div>
 
-    <!-- MAIN SCROLLING FEED VIEW (Global & Following) -->
+    <!-- MAIN SCROLLING FEED VIEW -->
     <div id="view-main" class="app-container hidden-by-default bg-[var(--md-sys-color-surface)]">
-        <!-- Sticky Header -->
         <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm">
             <div class="flex justify-between items-center max-w-md mx-auto">
                 <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-primary)" id="feed-title">Explore</h1>
             </div>
         </div>
-
-        <!-- Scrollable Feed -->
-        <div class="scroll-area w-full max-w-md mx-auto" id="main-feed-container">
-            <!-- Posts injected here -->
-        </div>
-
-        <!-- Create Post FAB -->
+        <div class="scroll-area w-full max-w-md mx-auto" id="main-feed-container"></div>
         <div class="m3-fab max-w-md mx-auto" onclick="switchView('view-create')">
             <span class="material-symbols-outlined" style="font-size: 28px;">edit</span>
         </div>
@@ -297,28 +259,18 @@
 
     <!-- SEARCH VIEW -->
     <div id="view-search" class="app-container hidden-by-default bg-[var(--md-sys-color-surface)]">
-        <!-- Sticky Search Header -->
         <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm">
-            <div class="max-w-md mx-auto flex flex-col gap-2">
-                <h1 class="text-2xl font-bold mb-1" style="color: var(--md-sys-color-primary)">Search</h1>
-                <input type="text" id="search-input" class="m3-input !rounded-lg" placeholder="Search posts, usernames, or unique IDs..." oninput="debounceSearch()">
-                
-                <!-- Type Toggle Chips -->
-                <div class="flex gap-2 p-1 rounded-full w-full" style="background-color: var(--md-sys-color-surface-variant);">
-                    <button id="search-type-posts" class="flex-1 py-1.5 rounded-full font-bold text-xs transition-all duration-300" style="background-color: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary);" onclick="setSearchType('posts')">Posts</button>
-                    <button id="search-type-users" class="flex-1 py-1.5 rounded-full font-bold text-xs transition-all duration-300" style="color: var(--md-sys-color-on-surface);" onclick="setSearchType('users')">Users</button>
+            <div class="max-w-md mx-auto flex flex-col gap-3">
+                <h1 class="text-2xl font-bold" style="color: var(--md-sys-color-primary)">Search</h1>
+                <input type="text" id="search-input" class="m3-input" placeholder="Search users, posts, or tags..." oninput="debounceSearch()">
+                <div class="flex gap-2 p-1 rounded-full w-full bg-black/20">
+                    <button id="search-type-posts" class="flex-1 py-1.5 rounded-full font-bold text-xs" style="background-color: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary);" onclick="setSearchType('posts')">Posts</button>
+                    <button id="search-type-users" class="flex-1 py-1.5 rounded-full font-bold text-xs text-white" onclick="setSearchType('users')">Users</button>
                 </div>
             </div>
         </div>
-
-        <!-- Scrollable Search Results -->
         <div class="scroll-area w-full max-w-md mx-auto" id="search-results-container">
-            <div class="text-center mt-20 opacity-70">Start typing to search Soshal...</div>
-        </div>
-
-        <!-- Create Post FAB -->
-        <div class="m3-fab max-w-md mx-auto" onclick="switchView('view-create')">
-            <span class="material-symbols-outlined" style="font-size: 28px;">edit</span>
+            <div class="text-center opacity-60 mt-10">Start typing to explore...</div>
         </div>
     </div>
 
@@ -327,16 +279,18 @@
         <div class="w-full bg-[var(--md-sys-color-surface)] pt-4 pb-2 px-4 sticky top-0 z-10 border-b border-[var(--md-sys-color-outline)] shadow-sm">
             <div class="flex justify-between items-center max-w-md mx-auto w-full">
                 <div class="flex items-center gap-4">
-                    <span class="material-symbols-outlined cursor-pointer transition-transform duration-200 active:-translate-x-1" id="profile-back-btn" onclick="openTab('global')">arrow_back</span>
+                    <span class="material-symbols-outlined cursor-pointer" onclick="openTab('global')">arrow_back</span>
                     <h2 class="text-xl font-bold" id="profile-header-title">Profile</h2>
                 </div>
-                <!-- Troubleshooting logout button: configured to be visible proactively -->
-                <span class="material-symbols-outlined cursor-pointer text-red-400 hidden transition-transform duration-200 active:scale-90" id="profile-logout-btn" onclick="logout()" title="Logout">logout</span>
+                <div class="flex items-center gap-3">
+                    <!-- Notification settings trigger (Always-on troubleshooting configuration) -->
+                    <span class="material-symbols-outlined cursor-pointer text-yellow-400 hidden" id="profile-bell-btn" onclick="openNotificationSettings()" title="Notification Settings">notifications</span>
+                    <span class="material-symbols-outlined cursor-pointer text-red-400" id="profile-logout-btn" onclick="logout()" title="Logout">logout</span>
+                </div>
             </div>
         </div>
 
         <div class="scroll-area w-full max-w-md mx-auto">
-            <!-- Profile Info Header -->
             <div class="flex flex-col items-center mb-6 pt-4">
                 <div class="w-24 h-24 avatar-square text-4xl mb-4" id="profile-avatar">?</div>
                 <h3 class="text-2xl font-bold mb-2"><span id="profile-username">User</span> <span id="profile-discriminator" class="text-sm opacity-50 font-normal"></span></h3>
@@ -354,16 +308,9 @@
                 
                 <button id="btn-follow" class="m3-button-filled mt-2" onclick="toggleFollow()">Follow</button>
             </div>
-
             <hr class="border-[var(--md-sys-color-outline)] opacity-30 mb-4">
-            
-            <!-- User's Posts Grid/List -->
-            <div class="w-full" id="profile-posts-container">
-               <!-- vertical list of posts -->
-            </div>
+            <div class="w-full" id="profile-posts-container"></div>
         </div>
-
-        <!-- Create Post FAB -->
         <div class="m3-fab max-w-md mx-auto" onclick="switchView('view-create')">
             <span class="material-symbols-outlined" style="font-size: 28px;">edit</span>
         </div>
@@ -372,18 +319,18 @@
     <!-- CREATE POST VIEW -->
     <div id="view-create" class="app-container hidden-by-default p-4 bg-[var(--md-sys-color-surface)] z-50">
         <div class="w-full max-w-md mx-auto flex items-center mb-6 py-4 border-b border-[var(--md-sys-color-outline)] pb-4">
-            <span class="material-symbols-outlined cursor-pointer mr-4 transition-transform duration-200 active:scale-90" onclick="closeCreateView()">close</span>
+            <span class="material-symbols-outlined cursor-pointer mr-4" onclick="closeCreateView()">close</span>
             <h2 class="text-xl font-medium">Create Post</h2>
             <div class="flex-1"></div>
             <button class="m3-button-filled py-2 px-4" onclick="submitPost()">Post</button>
         </div>
         
         <div class="w-full max-w-md mx-auto flex-1 flex flex-col relative">
-            <textarea id="create-post-content" class="w-full flex-1 bg-transparent text-xl outline-none resize-none transition-opacity duration-300" placeholder="What's happening?"></textarea>
+            <textarea id="create-post-content" class="w-full flex-1 bg-transparent text-xl outline-none resize-none" placeholder="What's happening?" oninput="handlePostContentInput(event)"></textarea>
             
-            <div id="image-preview-container" class="hidden w-full mb-4 relative rounded-lg overflow-hidden bg-black/20 h-48 border border-[var(--md-sys-color-outline)] fade-up-item">
+            <div id="image-preview-container" class="hidden w-full mb-4 relative rounded-lg overflow-hidden bg-black/20 h-48 border border-[var(--md-sys-color-outline)]">
                 <img id="image-preview" src="" class="w-full h-full object-cover">
-                <div class="absolute top-2 right-2 bg-black/50 rounded p-1 cursor-pointer flex items-center justify-center transition-transform duration-200 active:scale-90" onclick="clearImageSelection()">
+                <div class="absolute top-2 right-2 bg-black/50 rounded p-1 cursor-pointer flex items-center justify-center" onclick="clearImageSelection()">
                     <span class="material-symbols-outlined text-white" style="font-size: 20px;">close</span>
                 </div>
             </div>
@@ -393,6 +340,48 @@
                 <button class="action-btn" style="background-color: var(--md-sys-color-surface-variant);" onclick="document.getElementById('image-input').click()">
                     <span class="material-symbols-outlined">image</span> Add Image
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION SETTINGS MODAL DIALOG -->
+    <div id="dialog-notifications" class="fixed inset-0 z-[100] bg-black/70 hidden items-center justify-center p-4">
+        <div class="w-full max-w-sm m3-card flex flex-col gap-4 bg-[var(--md-sys-color-surface-variant)] text-[var(--md-sys-color-on-surface-variant)] border border-[var(--md-sys-color-outline)]">
+            <h3 class="text-xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined text-yellow-400">notifications</span>
+                Notification Settings
+            </h3>
+            <p class="text-sm opacity-80">Choose when you want to receive push notifications on this device.</p>
+            
+            <div class="flex flex-col gap-3 mt-2">
+                <label class="flex items-center gap-3 p-3 rounded-lg bg-black/20 cursor-pointer hover:bg-black/30 transition-colors">
+                    <input type="radio" name="notif-pref" value="off" class="w-4 h-4 accent-[var(--md-sys-color-primary)]">
+                    <div>
+                        <div class="font-bold text-sm">Notifications Off</div>
+                        <div class="text-xs opacity-75">No push notifications will be sent.</div>
+                    </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 rounded-lg bg-black/20 cursor-pointer hover:bg-black/30 transition-colors">
+                    <input type="radio" name="notif-pref" value="following" class="w-4 h-4 accent-[var(--md-sys-color-primary)]">
+                    <div>
+                        <div class="font-bold text-sm">People You Follow</div>
+                        <div class="text-xs opacity-75">Only get notified about posts from people you follow and tagged mentions.</div>
+                    </div>
+                </label>
+                
+                <label class="flex items-center gap-3 p-3 rounded-lg bg-black/20 cursor-pointer hover:bg-black/30 transition-colors">
+                    <input type="radio" name="notif-pref" value="everyone" class="w-4 h-4 accent-[var(--md-sys-color-primary)]">
+                    <div>
+                        <div class="font-bold text-sm text-red-300">Everyone (Not Recommended)</div>
+                        <div class="text-xs opacity-75">Receive notifications for posts from all users across the platform.</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="flex justify-end gap-2 mt-4">
+                <button class="m3-button-text" onclick="closeNotificationSettings()">Cancel</button>
+                <button class="m3-button-filled" id="btn-save-notifications" onclick="saveNotificationSettings()">Save</button>
             </div>
         </div>
     </div>
@@ -413,12 +402,15 @@
         </div>
     </div>
 
+    <!-- MENTION AUTOCOMPLETE PORTAL -->
+    <div id="mention-autocomplete"></div>
+
     <!-- IMAGE LIGHTBOX VIEW -->
     <div id="image-lightbox" class="fixed inset-0 z-[100] bg-black/95 hidden flex-col items-center justify-center p-4 cursor-pointer transition-opacity duration-300 opacity-0" onclick="closeImageLightbox()">
-        <div class="absolute top-6 right-6 bg-white/20 rounded w-10 h-10 flex items-center justify-center transition-transform duration-200 active:scale-90 hover:bg-white/30">
+        <div class="absolute top-6 right-6 bg-white/20 rounded w-10 h-10 flex items-center justify-center">
             <span class="material-symbols-outlined text-white">close</span>
         </div>
-        <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain rounded transition-transform duration-300 ease-out scale-95" onclick="event.stopPropagation()">
+        <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain rounded transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
     </div>
 
     <div id="snackbar">Message</div>
@@ -426,18 +418,23 @@
     <script>
         let API_BASE = 'https://dermal-brinda-marshier.ngrok-free.dev/api';
         
-        let isSignupMode = false;
+        // Push VAPID Public Key - Must be equivalent to server-side config
+        const PUBLIC_VAPID_KEY = "BDb7_547f_VapidPublicDemoKeyFormatOnly_ReplaceInProduction_KeepSecureValue";
+
+        let isSignupMode = false; // Declaring the missing auth toggle state variable
         let currentTab = 'global';
         let currentProfileUser = null;
         let isFollowingCurrentProfile = false;
         let currentSelectedImage = null;
         
-        // Search state
+        let postCache = {}; 
         let currentSearchType = 'posts';
         let searchTimeout = null;
-        
-        // Post Cache allows linking specific posts by ID to update likes uniformly
-        let postCache = {}; 
+
+        // Autocomplete States
+        let mentionQuery = '';
+        let autocompleteIndex = -1;
+        let activeMentionRange = null;
 
         const AuthStorage = {
             save: (token, username) => {
@@ -466,19 +463,16 @@
             has: (id) => LikeStorage.get().includes(id)
         };
 
-        // Deterministic Avatar Colors based on length
         function getAvatarColor(username) {
             const colors = [
                 '#6200EE', '#3700B3', '#03DAC6', '#018786', 
                 '#B00020', '#CF6679', '#FF0266', '#FF5722', 
                 '#4CAF50', '#00BCD4', '#9C27B0', '#3F51B5'
             ];
-            const index = username.length % colors.length;
-            return colors[index];
+            return colors[username.length % colors.length];
         }
 
         window.onload = () => {
-            // Load saved server address or default
             let savedServer = localStorage.getItem('soshal_server_address') || 'https://dermal-brinda-marshier.ngrok-free.dev';
             document.getElementById('auth-server').value = savedServer;
             updateApiBase(savedServer);
@@ -486,6 +480,8 @@
             if (AuthStorage.get()) {
                 document.getElementById('global-bottom-nav').classList.remove('hidden');
                 openTab('global');
+                // Silently register the background Service Worker and listen for updates
+                registerServiceWorker();
             } else {
                 switchView('view-auth');
             }
@@ -493,12 +489,8 @@
 
         function updateApiBase(serverUrl) {
             let base = serverUrl.trim();
-            if (base.endsWith('/')) {
-                base = base.slice(0, -1);
-            }
-            if (!base.startsWith('http://') && !base.startsWith('https://')) {
-                base = 'https://' + base;
-            }
+            if (base.endsWith('/')) base = base.slice(0, -1);
+            if (!base.startsWith('http://') && !base.startsWith('https://')) base = 'https://' + base;
             localStorage.setItem('soshal_server_address', base);
             API_BASE = `${base}/api`;
         }
@@ -507,7 +499,6 @@
             document.querySelectorAll('.app-container').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             
-            // Hide bottom nav strictly in Auth or Create Post mode
             if(viewId === 'view-auth' || viewId === 'view-create') {
                 document.getElementById('global-bottom-nav').style.display = 'none';
             } else {
@@ -516,20 +507,12 @@
         }
 
         function closeCreateView() {
-            if (currentTab === 'profile') {
-                switchView('view-profile');
-            } else if (currentTab === 'search') {
-                switchView('view-search');
-            } else {
-                switchView('view-main');
-            }
+            switchView(currentTab === 'profile' ? 'view-profile' : 'view-main');
         }
 
         // --- BOTTOM NAV TABS ---
         function openTab(tabName) {
             currentTab = tabName;
-            
-            // Reset visual active states
             ['global', 'following', 'search', 'profile'].forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const icon = document.getElementById(`icon-${t}`);
@@ -550,11 +533,10 @@
                 switchView('view-search');
                 performSearch();
             } else if (tabName === 'profile') {
-                openProfile(AuthStorage.getUser(), true);
+                openProfile(AuthStorage.getUser());
             }
         }
 
-        // --- UTILS ---
         function showToast(message) {
             const snackbar = document.getElementById("snackbar");
             snackbar.innerText = message;
@@ -594,15 +576,10 @@
                 if (!response.ok) throw new Error(data.error || 'API Error');
                 return data;
             } catch (err) {
-                // Catch network/connection failure
-                if (err instanceof TypeError || err.message === 'Failed to fetch' || err.name === 'TypeError') {
+                if (err instanceof TypeError || err.message === 'Failed to fetch') {
                     const serverUrl = localStorage.getItem('soshal_server_address') || 'https://dermal-brinda-marshier.ngrok-free.dev';
-                    showToast("Connection failed! Launching browser window to bypass potential restrictions/warnings...");
-                    
-                    // Delay window.open slightly to give user time to read the toast message
-                    setTimeout(() => {
-                        window.open(serverUrl, '_blank');
-                    }, 1200);
+                    showToast("Server unreachable! Launching browser tab to bypass potential warnings...");
+                    setTimeout(() => { window.open(serverUrl, '_blank'); }, 1200);
                 }
                 throw err;
             }
@@ -635,22 +612,30 @@
                 document.getElementById('auth-password').value = '';
                 document.getElementById('global-bottom-nav').classList.remove('hidden');
                 openTab('global');
+                registerServiceWorker();
             } catch (err) {
                 showToast(err.message);
             }
         }
 
         async function logout() {
-            try { await apiRequest('/logout', {}); } catch (e) { }
+            try { await apiRequest('/logout', {}); } catch (e) {}
             AuthStorage.clear();
             document.getElementById('global-bottom-nav').classList.add('hidden');
             switchView('view-auth');
         }
 
-        // --- POST COMPONENT GENERATOR ---
+        // --- RENDER POST COMPONENT WITH MENTIONS parsing ---
+        function parseMentions(text) {
+            // Converts @Username#userid syntax into interactive elements
+            const mentionPattern = /@([a-zA-Z0-9_]+)#([a-zA-Z0-9]{5})/g;
+            return text.replace(mentionPattern, (match, username, userid) => {
+                return `<span class="text-[var(--md-sys-color-primary)] font-bold cursor-pointer hover:underline" onclick="event.stopPropagation(); openProfile('${username}')">@${username}</span>`;
+            });
+        }
+
         function createPostElement(post) {
-            postCache[post.id] = post; // Save to global memory cache
-            
+            postCache[post.id] = post;
             const isLiked = LikeStorage.has(post.id);
             const heartFill = isLiked ? "1" : "0";
             const heartColor = isLiked ? "#d93025" : "inherit";
@@ -661,23 +646,23 @@
             el.id = `post-card-${post.id}`;
 
             let imgHtml = post.image ? `
-                <div class="w-full mt-3 rounded overflow-hidden border border-[var(--md-sys-color-outline)] cursor-pointer transition-opacity duration-200 active:opacity-80" onclick="openImageLightbox('${post.image}')">
+                <div class="w-full mt-3 rounded overflow-hidden border border-[var(--md-sys-color-outline)] cursor-pointer active:opacity-80" onclick="openImageLightbox('${post.image}')">
                     <img src="${post.image}" class="w-full h-auto max-h-80 object-cover">
                 </div>
             ` : '';
 
-            // Apply calculated avatar background color based on name length
             const avatarBg = getAvatarColor(post.author);
+            const parsedContent = parseMentions(post.content);
 
             el.innerHTML = `
                 <div class="flex items-center gap-3 mb-3">
                     <div class="avatar-square cursor-pointer" style="background-color: ${avatarBg}" onclick="openProfile('${post.author}')">${post.author.charAt(0).toUpperCase()}</div>
                     <div class="flex-1">
-                        <div class="font-bold text-base cursor-pointer hover:underline inline-block transition-colors duration-200" onclick="openProfile('${post.author}')">${post.author}</div>
+                        <div class="font-bold text-base cursor-pointer hover:underline inline-block" onclick="openProfile('${post.author}')">${post.author}</div>
                         <div class="text-xs opacity-70">${timeSince(post.timestamp)}</div>
                     </div>
                 </div>
-                <div class="text-[17px] leading-relaxed break-words whitespace-pre-wrap">${post.content}</div>
+                <div class="text-[17px] leading-relaxed break-words whitespace-pre-wrap">${parsedContent}</div>
                 ${imgHtml}
                 
                 <div class="flex justify-between items-center mt-3 pt-2 border-t border-[var(--md-sys-color-outline)]">
@@ -693,44 +678,33 @@
             return el;
         }
 
-        // --- FEED RENDERING ---
+        // --- FEED ---
         async function fetchFeedPosts(feedType) {
             const container = document.getElementById('main-feed-container');
-            container.innerHTML = '<div class="text-center mt-10 opacity-70 fade-up-item">Loading...</div>';
-            
+            container.innerHTML = '<div class="text-center mt-10 opacity-70">Loading...</div>';
             try {
                 const data = await apiRequest('/posts/list', { limit: 50, feed_type: feedType });
                 container.innerHTML = '';
                 
                 if (feedType === 'following' && data.is_following_empty) {
-                    container.innerHTML = `
-                        <div class="text-center mt-20 opacity-70 px-4 fade-up-item">
-                            You aren't following anyone yet or they haven't posted.<br><br>Switch to Explore to find friends!
-                        </div>`;
+                    container.innerHTML = `<div class="text-center mt-20 opacity-70 px-4">You aren't following anyone yet.<br><br>Switch to Explore!</div>`;
                     return;
                 }
-
                 if (!data.posts || data.posts.length === 0) {
-                    container.innerHTML = '<div class="text-center mt-20 opacity-70 fade-up-item">No posts found.</div>';
+                    container.innerHTML = '<div class="text-center mt-20 opacity-70">No posts found.</div>';
                     return;
                 }
-
                 data.posts.forEach((post, index) => {
                     const el = createPostElement(post);
-                    el.classList.add('fade-up-item');
-                    el.style.animationDelay = `${index * 0.05}s`;
                     container.appendChild(el);
                 });
             } catch (err) {
-                if(err.message.includes("Invalid or expired token")) {
-                    logout();
-                } else {
-                    container.innerHTML = '<div class="text-center mt-10 opacity-70 text-red-400 fade-up-item">Could not connect to server.</div>';
-                }
+                if(err.message.includes("Invalid or expired token")) logout();
+                else container.innerHTML = '<div class="text-center mt-10 text-red-400">Could not connect to server.</div>';
             }
         }
 
-        // --- SEARCH ENGINE ---
+        // --- SEARCH ---
         function setSearchType(type) {
             currentSearchType = type;
             const btnPosts = document.getElementById('search-type-posts');
@@ -757,120 +731,81 @@
         async function performSearch() {
             const query = document.getElementById('search-input').value.trim();
             const container = document.getElementById('search-results-container');
-            
             if (!query) {
-                container.innerHTML = '<div class="text-center mt-20 opacity-70">Start typing to search Soshal...</div>';
+                container.innerHTML = '<div class="text-center opacity-60 mt-10">Start typing to search Soshal...</div>';
                 return;
             }
-
-            container.innerHTML = '<div class="text-center opacity-70 mt-20">Searching...</div>';
-
+            container.innerHTML = '<div class="text-center opacity-60 mt-10">Searching...</div>';
             try {
                 const data = await apiRequest('/search', { query: query, type: currentSearchType });
                 container.innerHTML = '';
-
                 if (!data.results || data.results.length === 0) {
-                    container.innerHTML = '<div class="text-center opacity-70 mt-20">No results found.</div>';
+                    container.innerHTML = '<div class="text-center opacity-60 mt-10">No results found.</div>';
                     return;
                 }
-
                 if (currentSearchType === 'users') {
-                    data.results.forEach((user, idx) => {
+                    data.results.forEach(user => {
                         const avatarBg = getAvatarColor(user.username);
                         const card = document.createElement('div');
-                        card.className = 'm3-card mb-3 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform fade-up-item';
-                        card.style.animationDelay = `${idx * 0.05}s`;
-                        card.onclick = () => {
-                            openProfile(user.username);
-                        };
+                        card.className = 'm3-card flex items-center justify-between cursor-pointer';
+                        card.onclick = () => openProfile(user.username);
                         card.innerHTML = `
                             <div class="flex items-center gap-3">
-                                <div class="avatar-square" style="background-color: ${avatarBg}">
-                                    ${user.username.charAt(0).toUpperCase()}
-                                </div>
+                                <div class="w-10 h-10 rounded font-bold flex items-center justify-center text-white" style="background-color: ${avatarBg}">${user.username.charAt(0).toUpperCase()}</div>
                                 <div class="flex flex-col">
-                                    <div class="font-bold flex items-baseline gap-1">
-                                        <span>${user.username}</span>
-                                        <span class="text-xs opacity-50 font-normal">#${user.user_id}</span>
-                                    </div>
+                                    <div class="font-bold flex items-baseline gap-1"><span>${user.username}</span><span class="text-xs opacity-50 font-normal">#${user.user_id}</span></div>
                                     <div class="text-xs opacity-70">${user.followers_count} Followers &bull; ${user.following_count} Following</div>
                                 </div>
                             </div>
-                            <span class="material-symbols-outlined opacity-70">chevron_right</span>
+                            <span class="material-symbols-outlined">chevron_right</span>
                         `;
                         container.appendChild(card);
                     });
                 } else {
-                    data.results.forEach((post, idx) => {
+                    data.results.forEach(post => {
                         const el = createPostElement(post);
-                        el.classList.add('fade-up-item');
-                        el.style.animationDelay = `${idx * 0.05}s`;
                         container.appendChild(el);
                     });
                 }
             } catch (err) {
-                container.innerHTML = '<div class="text-center text-red-400 mt-20">Search failed.</div>';
+                container.innerHTML = '<div class="text-center text-red-400 mt-10">Search failed.</div>';
             }
         }
 
         // --- PROFILE LOADING ---
-        async function openProfile(username, isOwnProfileTab = false) {
+        async function openProfile(username) {
             currentProfileUser = username;
             switchView('view-profile');
             
-            // Handle Back Button logic
-            const backBtn = document.getElementById('profile-back-btn');
-            if (isOwnProfileTab) {
-                backBtn.style.display = 'none';
-            } else {
-                backBtn.style.display = 'block';
-                // Route profile back-button to search if profile was launched from a search click
-                if (currentTab === 'search') {
-                    backBtn.onclick = () => openTab('search');
-                } else {
-                    backBtn.onclick = () => openTab('global');
-                }
-            }
-
             document.getElementById('profile-header-title').innerText = username;
             document.getElementById('profile-username').innerText = username;
             document.getElementById('profile-avatar').innerText = username.charAt(0).toUpperCase();
             document.getElementById('profile-avatar').style.backgroundColor = getAvatarColor(username);
             
-            const isSelf = (username === AuthStorage.getUser());
-            const logoutBtn = document.getElementById('profile-logout-btn');
-            
-            // Ensure logout button is displayed instantly to allow troubleshooting connection issues
-            if (isSelf) {
-                logoutBtn.classList.remove('hidden');
-            } else {
-                logoutBtn.classList.add('hidden');
-            }
-
             const container = document.getElementById('profile-posts-container');
-            container.innerHTML = '<div class="text-center mt-8 fade-up-item">Loading profile...</div>';
+            container.innerHTML = '<div class="text-center mt-8">Loading profile...</div>';
 
             try {
                 const profileData = await apiRequest('/users/profile', { username: username });
                 document.getElementById('profile-followers').innerText = profileData.followers_count;
                 document.getElementById('profile-following').innerText = profileData.following_count;
                 
-                // Show discriminator user_id
+                // Show cryptographic discriminator user_id
                 const discEl = document.getElementById('profile-discriminator');
-                if (profileData.user_id) {
-                    discEl.innerText = `#${profileData.user_id}`;
-                } else {
-                    discEl.innerText = '';
-                }
+                discEl.innerText = profileData.user_id ? `#${profileData.user_id}` : '';
 
                 const followBtn = document.getElementById('btn-follow');
+                const bellBtn = document.getElementById('profile-bell-btn');
                 
                 if (profileData.is_self) {
                     followBtn.style.display = 'none';
-                    logoutBtn.classList.remove('hidden');
+                    bellBtn.classList.remove('hidden'); // Show push configuration utility for self
+                    
+                    // Save personal notification preferences locally
+                    localStorage.setItem('soshal_notif_pref', profileData.notification_preference || 'following');
                 } else {
                     followBtn.style.display = 'block';
-                    logoutBtn.classList.add('hidden');
+                    bellBtn.classList.add('hidden'); // Hide push configuration from other users
                     isFollowingCurrentProfile = profileData.is_following;
                     followBtn.innerText = isFollowingCurrentProfile ? 'Unfollow' : 'Follow';
                     followBtn.style.backgroundColor = isFollowingCurrentProfile ? 'var(--md-sys-color-surface-variant)' : 'var(--md-sys-color-primary)';
@@ -881,21 +816,19 @@
                 container.innerHTML = '';
                 
                 if (postsData.posts.length === 0) {
-                    container.innerHTML = '<div class="text-center mt-8 opacity-70 fade-up-item">No posts yet.</div>';
+                    container.innerHTML = '<div class="text-center mt-8 opacity-70">No posts yet.</div>';
                 } else {
-                    postsData.posts.forEach((post, index) => {
+                    postsData.posts.forEach(post => {
                         const el = createPostElement(post);
-                        el.classList.add('fade-up-item');
-                        el.style.animationDelay = `${index * 0.05}s`;
                         container.appendChild(el);
                     });
                 }
             } catch(e) {
-                // If API fails, keep layout functional and explain troubleshooting steps
-                container.innerHTML = `
-                    <div class="text-center mt-8 text-red-400 p-4 fade-up-item">
-                        Could not load profile details.<br><br>
-                        Verify your server configuration or tap the logout button above to troubleshoot.
+                // Keep layout functional and always expose troubleshooting controls on failure
+                document.getElementById('profile-posts-container').innerHTML = `
+                    <div class="text-center mt-8 text-red-400 p-4">
+                        Unable to pull data from server.<br>
+                        Check connection parameters or logout above to reconnect.
                     </div>
                 `;
             }
@@ -906,27 +839,208 @@
             const action = isFollowingCurrentProfile ? 'unfollow' : 'follow';
             try {
                 await apiRequest('/users/follow', { target_user: currentProfileUser, action: action });
-                
                 isFollowingCurrentProfile = !isFollowingCurrentProfile;
                 const followBtn = document.getElementById('btn-follow');
                 followBtn.innerText = isFollowingCurrentProfile ? 'Unfollow' : 'Follow';
                 followBtn.style.backgroundColor = isFollowingCurrentProfile ? 'var(--md-sys-color-surface-variant)' : 'var(--md-sys-color-primary)';
                 followBtn.style.color = isFollowingCurrentProfile ? 'var(--md-sys-color-on-surface)' : 'var(--md-sys-color-on-primary)';
-                
                 let count = parseInt(document.getElementById('profile-followers').innerText);
                 document.getElementById('profile-followers').innerText = isFollowingCurrentProfile ? count + 1 : count - 1;
-                
                 showToast(`${isFollowingCurrentProfile ? 'Followed' : 'Unfollowed'} ${currentProfileUser}`);
             } catch(e) {
                 showToast(e.message);
             }
         }
 
-        // --- POST INTERACTIONS ---
+        // --- PUSH NOTIFICATION SETTINGS CONTROLLERS ---
+        function openNotificationSettings() {
+            const currentPref = localStorage.getItem('soshal_notif_pref') || 'following';
+            const radio = document.querySelector(`input[name="notif-pref"][value="${currentPref}"]`);
+            if (radio) radio.checked = true;
+            document.getElementById('dialog-notifications').classList.remove('hidden');
+            document.getElementById('dialog-notifications').classList.add('flex');
+        }
+
+        function closeNotificationSettings() {
+            const dialog = document.getElementById('dialog-notifications');
+            dialog.classList.remove('flex');
+            dialog.classList.add('hidden');
+        }
+
+        async function saveNotificationSettings() {
+            const selectedPref = document.querySelector('input[name="notif-pref"]:checked').value;
+            const btn = document.getElementById('btn-save-notifications');
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            let subscription = null;
+
+            if (selectedPref !== 'off') {
+                try {
+                    subscription = await registerAndSubscribePush();
+                } catch (err) {
+                    console.warn("Push subscription failed:", err);
+                    showToast("Push token failed. Saving preferences without active pushes.");
+                    // Do not abort; continue saving the preference on the server
+                }
+            }
+
+            try {
+                const response = await apiRequest('/users/save_notifications_settings', {
+                    preference: selectedPref,
+                    subscription: subscription
+                });
+                localStorage.setItem('soshal_notif_pref', selectedPref);
+                showToast(`Preferences updated to: ${selectedPref}`);
+                closeNotificationSettings();
+            } catch (err) {
+                showToast("Server sync failed.");
+            } finally {
+                btn.innerText = "Save";
+                btn.disabled = false;
+            }
+        }
+
+        async function registerServiceWorker() {
+            if (!('serviceWorker' in navigator)) return;
+            try {
+                await navigator.serviceWorker.register('/sw.js');
+                console.log("Push Service Worker registered.");
+            } catch (e) {
+                console.warn("SW Registration ignored or unsupported.");
+            }
+        }
+
+        async function registerAndSubscribePush() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                throw new Error("Push unsupported");
+            }
+
+            // Grab the registration directly without waiting indefinitely on the blocking .ready promise
+            let reg = await navigator.serviceWorker.getRegistration();
+            if (!reg) {
+                reg = await navigator.serviceWorker.register('/sw.js');
+            }
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                throw new Error("Notification permission denied");
+            }
+
+            // Unsubscribe existing to avoid conflicts, handling errors gracefully
+            try {
+                const existingSub = await reg.pushManager.getSubscription();
+                if (existingSub) {
+                    await existingSub.unsubscribe();
+                }
+            } catch (e) {
+                console.warn("Unsubscribe failed:", e);
+            }
+
+            const applicationServerKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
+            return await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: applicationServerKey
+            });
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // --- CARET POSITION TRACKING MENTIONS CONTROLLER ---
+        function getCaretCoordinates(element, position) {
+            const { offsetLeft, offsetTop } = element;
+            const div = document.createElement('div');
+            const copyStyle = getComputedStyle(element);
+            for (const prop of copyStyle) {
+                div.style[prop] = copyStyle[prop];
+            }
+            div.style.position = 'absolute';
+            div.style.visibility = 'hidden';
+            div.style.whiteSpace = 'pre-wrap';
+            
+            const textContent = element.value.substr(0, position);
+            div.textContent = textContent;
+            
+            const span = document.createElement('span');
+            span.textContent = element.value.substr(position) || '.';
+            div.appendChild(span);
+            
+            document.body.appendChild(div);
+            const rect = span.getBoundingClientRect();
+            document.body.removeChild(div);
+            
+            return {
+                top: element.getBoundingClientRect().top + window.scrollY + rect.top - div.scrollTop,
+                left: element.getBoundingClientRect().left + window.scrollX + rect.left
+            };
+        }
+
+        function handlePostContentInput(e) {
+            const textarea = e.target;
+            const text = textarea.value;
+            const caretPos = textarea.selectionStart;
+            
+            // Look backward from caret to find a active '@' prefix query
+            const lastAtIdx = text.lastIndexOf('@', caretPos - 1);
+            if (lastAtIdx !== -1 && !text.substring(lastAtIdx, caretPos).includes(' ')) {
+                const query = text.substring(lastAtIdx + 1, caretPos);
+                openMentionAutocomplete(textarea, lastAtIdx, query);
+            } else {
+                closeMentionAutocomplete();
+            }
+        }
+
+        async function openMentionAutocomplete(textarea, atIndex, query) {
+            const coords = getCaretCoordinates(textarea, atIndex);
+            const portal = document.getElementById('mention-autocomplete');
+            
+            try {
+                const data = await apiRequest('/search', { query: query, type: 'users' });
+                if (!data.results || data.results.length === 0) {
+                    closeMentionAutocomplete();
+                    return;
+                }
+                
+                portal.innerHTML = '';
+                portal.style.top = `${coords.top + 24}px`;
+                portal.style.left = `${coords.left}px`;
+                portal.style.display = 'block';
+
+                data.results.forEach(user => {
+                    const el = document.createElement('div');
+                    el.className = 'mention-item';
+                    el.onclick = () => {
+                        const before = textarea.value.substring(0, atIndex);
+                        const after = textarea.value.substring(textarea.selectionStart);
+                        textarea.value = `${before}@${user.username}#${user.user_id} ${after}`;
+                        closeMentionAutocomplete();
+                        textarea.focus();
+                    };
+                    el.innerHTML = `<strong>@${user.username}</strong><span class="opacity-50 text-xs">#${user.user_id}</span>`;
+                    portal.appendChild(el);
+                });
+            } catch (err) {
+                closeMentionAutocomplete();
+            }
+        }
+
+        function closeMentionAutocomplete() {
+            document.getElementById('mention-autocomplete').style.display = 'none';
+        }
+
+        // --- GENERAL POST UTILITIES ---
         async function toggleLike(postId) {
             const post = postCache[postId];
             if (!post) return;
-
             const isLiked = LikeStorage.has(postId);
             const action = isLiked ? 'unlike' : 'like';
 
@@ -950,14 +1064,8 @@
                 });
                 btns.forEach(b => b.classList.add('liked'));
             }
-            
             counts.forEach(c => c.innerText = post.likes);
-
-            try {
-                await apiRequest('/posts/like', { post_id: postId, action: action });
-            } catch (err) {
-                console.error("Like sync failed", err);
-            }
+            try { await apiRequest('/posts/like', { post_id: postId, action: action }); } catch (err) {}
         }
 
         function sharePost(postId) {
@@ -977,22 +1085,14 @@
             }
         }
 
-        // --- CREATE POST / MEDIA ---
         function handleImageSelection(event) {
             const file = event.target.files[0];
             if (!file) return;
-            if (!file.type.startsWith('image/')) return showToast("Please select a valid image file.");
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 currentSelectedImage = e.target.result;
-                const container = document.getElementById('image-preview-container');
                 document.getElementById('image-preview').src = currentSelectedImage;
-                container.classList.remove('hidden');
-                
-                container.style.animation = 'none';
-                void container.offsetWidth;
-                container.style.animation = '';
+                document.getElementById('image-preview-container').classList.remove('hidden');
             };
             reader.readAsDataURL(file);
         }
@@ -1007,34 +1107,25 @@
         async function submitPost() {
             const content = document.getElementById('create-post-content').value.trim();
             if (!content && !currentSelectedImage) return showToast("Post cannot be empty.");
-
             try {
                 await apiRequest('/posts/create', { content: content, image: currentSelectedImage });
                 document.getElementById('create-post-content').value = '';
                 clearImageSelection();
                 showToast("Posted successfully!");
                 closeCreateView();
-                
-                if (currentTab === 'global' || currentTab === 'following') {
-                    fetchFeedPosts(currentTab);
-                } else if (currentTab === 'profile') {
-                    openProfile(currentProfileUser, true);
-                } else if (currentTab === 'search') {
-                    performSearch();
-                }
+                openTab('global');
             } catch (err) {
                 showToast(err.message);
             }
         }
 
-        // --- LIGHTBOX ---
         function openImageLightbox(src) {
             const lightbox = document.getElementById('image-lightbox');
             const img = document.getElementById('lightbox-img');
             img.src = src;
             lightbox.classList.remove('hidden');
             lightbox.classList.add('flex');
-            void lightbox.offsetWidth; // Force reflow
+            void lightbox.offsetWidth;
             lightbox.classList.remove('opacity-0');
             lightbox.classList.add('opacity-100');
             img.classList.remove('scale-95');
