@@ -16,7 +16,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        /* Material 3 Dark Theme */
+        /* Material 3 Dark Theme Token Palette */
         :root {
             --md-sys-color-primary: #D0BCFF;
             --md-sys-color-on-primary: #381E72;
@@ -260,7 +260,6 @@
             to { transform: translateY(0) scale(1); opacity: 1; }
         }
         
-        /* Comment Scroll Area */
         .comments-list {
             scrollbar-width: thin;
         }
@@ -291,10 +290,8 @@
             </div>
         </div>
         
-        <!-- Live scrolling posts container -->
         <div class="scroll-area w-full max-w-md mx-auto" id="main-feed-container"></div>
         
-        <!-- "New Posts" floating bubble -->
         <div id="new-posts-bubble" class="hidden" onclick="loadPendingNewPosts()">
             <span class="material-symbols-outlined font-bold text-sm">arrow_upward</span>
             New Posts
@@ -450,7 +447,6 @@
         </div>
     </div>
 
-    <!-- MENTION AUTOCOMPLETE PORTAL -->
     <div id="mention-autocomplete"></div>
 
     <!-- IMAGE LIGHTBOX VIEW -->
@@ -465,8 +461,6 @@
 
     <script>
         let API_BASE = 'https://dermal-brinda-marshier.ngrok-free.dev/api';
-        
-        // Push VAPID Public Key
         const PUBLIC_VAPID_KEY = "BDrsEIWlTy1YTAZxpkN1f1C0EcuCjL15j8lxS3KaXzDE_BvlWIHEIGdmsP3hfiiG3ldbF89pWEc6foyFxSOe5es";
 
         let isSignupMode = false; 
@@ -563,7 +557,7 @@
             else switchView('view-main');
         }
 
-        // --- BOTTOM NAV TABS ---
+        // --- STREAMING_CHUNK: Processing Navigation Tabs... ---
         function openTab(tabName) {
             currentTab = tabName;
             hideNewPostsBubble();
@@ -687,7 +681,7 @@
             switchView('view-auth');
         }
 
-        // --- RENDER POST COMPONENT ---
+        // --- STREAMING_CHUNK: Parsing mentions & assembling post items... ---
         function parseMentions(text) {
             const mentionPattern = /@([a-zA-Z0-9_]+)#([a-zA-Z0-9]{5})/g;
             return text.replace(mentionPattern, (match, username, userid) => {
@@ -729,21 +723,21 @@
                 
                 <div class="flex justify-between items-center mt-3 pt-2 border-t border-[var(--md-sys-color-outline)]">
                     <div class="flex gap-4">
-                        <div class="action-btn ${heartClass}" id="btn-like-${post.id}" onclick="toggleLike('${post.id}')">
+                        <div class="action-btn ${heartClass}" id="btn-like-${post.id}" onclick="toggleLike(event, '${post.id}')">
                             <span class="material-symbols-outlined transition-transform duration-200" id="icon-like-${post.id}" style="font-variation-settings: 'FILL' ${heartFill}; color: ${heartColor}">favorite</span>
                             <span class="font-medium" id="count-like-${post.id}">${post.likes || 0}</span>
                         </div>
-                        <div class="action-btn" onclick="toggleComments('${post.id}')">
+                        <div class="action-btn" onclick="toggleComments(event, '${post.id}')">
                             <span class="material-symbols-outlined">chat_bubble</span>
                             <span class="font-medium" id="count-comment-${post.id}">${post.comment_count || 0}</span>
                         </div>
                     </div>
-                    <div class="action-btn" onclick="sharePost('${post.id}')">
+                    <div class="action-btn" onclick="sharePost(event, '${post.id}')">
                         <span class="material-symbols-outlined">share</span>
                     </div>
                 </div>
 
-                <!-- Live Discussion/Comment Thread (Hidden by default) -->
+                <!-- Live Discussion/Comment Thread -->
                 <div id="comments-section-${post.id}" class="hidden flex-col gap-3 mt-3 pt-3 border-t border-[var(--md-sys-color-outline)]">
                     <div id="comments-list-${post.id}" class="comments-list flex flex-col gap-3 max-h-60 overflow-y-auto pr-1"></div>
                     <div class="flex gap-2 items-center">
@@ -758,8 +752,69 @@
             return el;
         }
 
+        // --- STREAMING_CHUNK: Processing Likes & Sharing system... ---
+        async function toggleLike(event, postId) {
+            if (event) event.stopPropagation(); // Block Mobile event bubbling
+            
+            const post = postCache[postId];
+            if (!post) return;
+
+            const isLiked = LikeStorage.has(postId);
+            const action = isLiked ? 'unlike' : 'like';
+
+            const icons = document.querySelectorAll(`#icon-like-${postId}`);
+            const counts = document.querySelectorAll(`#count-like-${postId}`);
+            const btns = document.querySelectorAll(`#btn-like-${postId}`);
+
+            if (isLiked) {
+                LikeStorage.remove(postId);
+                post.likes = Math.max(0, (post.likes || 1) - 1);
+                icons.forEach(i => { i.style.fontVariationSettings = "'FILL' 0"; i.style.color = "inherit"; });
+                btns.forEach(b => b.classList.remove('liked'));
+            } else {
+                LikeStorage.add(postId);
+                post.likes = (post.likes || 0) + 1;
+                icons.forEach(i => { 
+                    i.style.fontVariationSettings = "'FILL' 1"; 
+                    i.style.color = "#d93025"; 
+                    i.style.transform = "scale(1.3)";
+                    setTimeout(() => i.style.transform = "scale(1)", 200);
+                });
+                btns.forEach(b => b.classList.add('liked'));
+            }
+            
+            counts.forEach(c => c.innerText = post.likes);
+
+            try {
+                await apiRequest('/posts/like', { post_id: postId, action: action });
+            } catch (err) {
+                console.error("Like sync failed", err);
+            }
+        }
+
+        function sharePost(event, postId) {
+            if (event) event.stopPropagation();
+            
+            const post = postCache[postId];
+            if (!post) return;
+            const textToShare = `"${post.content}" - ${post.author} on Soshal`;
+            try {
+                const el = document.createElement('textarea');
+                el.value = textToShare;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                showToast("Couldn't copy text.");
+            }
+        }
+
         // --- COMMENTS ENGINE ---
-        async function toggleComments(postId) {
+        async function toggleComments(event, postId) {
+            if (event) event.stopPropagation();
+            
             const section = document.getElementById(`comments-section-${postId}`);
             const list = document.getElementById(`comments-list-${postId}`);
             
@@ -788,6 +843,7 @@
             }
         }
 
+        // --- STREAMING_CHUNK: Managing comment data flow... ---
         function createCommentItem(comment) {
             const el = document.createElement('div');
             el.className = 'flex gap-2 text-sm';
@@ -817,7 +873,6 @@
                 list.appendChild(createCommentItem(data.comment));
                 list.scrollTop = list.scrollHeight;
                 
-                // Update numerical count seamlessly
                 const countEl = document.getElementById(`count-comment-${postId}`);
                 let count = parseInt(countEl.innerText) || 0;
                 countEl.innerText = count + 1;
@@ -831,7 +886,7 @@
             }
         }
 
-        // --- FEED ---
+        // --- STREAMING_CHUNK: Managing Feed polling & updates... ---
         async function fetchFeedPosts(feedType) {
             const container = document.getElementById('main-feed-container');
             container.innerHTML = '<div class="text-center mt-10 opacity-70">Loading...</div>';
@@ -956,7 +1011,7 @@
             bubble.classList.remove('flex'); bubble.classList.add('hidden');
         }
 
-        // --- SEARCH ---
+        // --- STREAMING_CHUNK: Processing Search Engine Queries... ---
         function setSearchType(type) {
             currentSearchType = type;
             const btnPosts = document.getElementById('search-type-posts');
@@ -1020,7 +1075,7 @@
             }
         }
 
-        // --- PROFILE LOADING ---
+        // --- STREAMING_CHUNK: Processing Profiles & Relationship states... ---
         async function openProfile(username, isOwnTab = false) {
             currentProfileUser = username;
             switchView('view-profile');
@@ -1100,7 +1155,7 @@
             }
         }
 
-        // --- PUSH NOTIFICATION SETTINGS ---
+        // --- STREAMING_CHUNK: Processing Push Registrations... ---
         async function enablePushPrompt() {
             const card = document.getElementById('push-prompt-card');
             showToast("Requesting push permission...");
@@ -1170,6 +1225,7 @@
             return outputArray;
         }
 
+        // --- STREAMING_CHUNK: Processing Mentions & Auto-completion coordinates... ---
         function getCaretCoordinates(element, position) {
             const { offsetLeft, offsetTop } = element;
             const div = document.createElement('div');
@@ -1220,7 +1276,7 @@
 
         function closeMentionAutocomplete() { document.getElementById('mention-autocomplete').style.display = 'none'; }
 
-        // --- GENERAL POST UTILITIES ---
+        // --- STREAMING_CHUNK: Processing File Upload Attachment & Posting... ---
         function handleImageSelection(event) {
             const file = event.target.files[0];
             if (!file) return;
