@@ -1,0 +1,19 @@
+name: Scheduled Upstream Sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
+  workflow_dispatch: # Allows you to manually trigger the sync if needed
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync upstream changes
+        uses: aormsby/Fork-Sync-With-Upstream-action@v2.1
+        with:
+          upstream_repository: AstroMeYT/Soshal
+          upstream_branch: main # Change to master if that is their default branch
+          target_branch: main # Your local fork's default branch
+          git_pull_args: --ff-only # Ensures clean fast-forward syncs
+          github_token: ${{ secrets.GITHUB_TOKEN }}
