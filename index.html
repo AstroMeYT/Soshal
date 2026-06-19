@@ -1308,16 +1308,31 @@
         async function submitPost() {
             const content = document.getElementById('create-post-content').value.trim();
             if (!content && !currentSelectedImage) return showToast("Post cannot be empty.");
-            try {
-                await apiRequest('/posts/create', { content: content, image: currentSelectedImage });
-                document.getElementById('create-post-content').value = '';
-                clearImageSelection();
-                showToast("Posted successfully!");
-                closeCreateView();
-                openTab('global');
-            } catch (err) {
-                showToast(err.message);
-            }
+
+            // Capture the content and image state to process in the background
+            const postContent = content;
+            const postImage = currentSelectedImage;
+
+            // Instantly clear the UI inputs, close the create panel, and go back home
+            document.getElementById('create-post-content').value = '';
+            clearImageSelection();
+            closeCreateView();
+            openTab('global');
+            
+            showToast("Posting...");
+
+            // Dispatch network request asynchronously
+            apiRequest('/posts/create', { content: postContent, image: postImage })
+                .then(() => {
+                    showToast("Posted successfully!");
+                    // Refresh the current timeline to show the new post
+                    if (currentTab === 'global' || currentTab === 'following') {
+                        fetchFeedPosts(currentTab);
+                    }
+                })
+                .catch(err => {
+                    showToast("Posting failed: " + err.message);
+                });
         }
 
         function openImageLightbox(src) {
