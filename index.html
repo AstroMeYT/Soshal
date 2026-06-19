@@ -46,6 +46,7 @@
             -ms-overflow-style: none; /* IE and Edge */
         }
 
+        /* Material 3 Sharpened Components */
         .m3-card {
             background-color: var(--md-sys-color-surface-variant);
             border-radius: var(--border-rad);
@@ -101,6 +102,7 @@
             transform: scale(0.98);
         }
 
+        /* App Layout Architecture & Animations */
         .app-container {
             display: none;
             flex-direction: column;
@@ -377,13 +379,8 @@
         </div>
         
         <div class="w-full max-w-md mx-auto flex-1 flex flex-col relative">
-            <textarea id="create-post-content" class="w-full flex-1 bg-transparent text-xl outline-none resize-none transition-opacity duration-300" placeholder="What's happening? (Type @ to mention someone)"></textarea>
+            <textarea id="create-post-content" class="w-full flex-1 bg-transparent text-xl outline-none resize-none transition-opacity duration-300" placeholder="What's happening?"></textarea>
             
-            <!-- FLOATING AUTOCOMPLETE SUGGESTION MENU FOR MENTIONS -->
-            <div id="mention-dropdown" class="absolute hidden z-[60] bg-[var(--md-sys-color-surface-variant)] border border-[var(--md-sys-color-outline)] rounded shadow-lg max-h-48 overflow-y-auto w-64">
-                <!-- Injected via javascript -->
-            </div>
-
             <div id="image-preview-container" class="hidden w-full mb-4 relative rounded-lg overflow-hidden bg-black/20 h-48 border border-[var(--md-sys-color-outline)] fade-up-item">
                 <img id="image-preview" src="" class="w-full h-full object-cover">
                 <div class="absolute top-2 right-2 bg-black/50 rounded p-1 cursor-pointer flex items-center justify-center transition-transform duration-200 active:scale-90" onclick="clearImageSelection()">
@@ -435,10 +432,9 @@
         let isFollowingCurrentProfile = false;
         let currentSelectedImage = null;
         
-        // Search and Autocomplete state
+        // Search state
         let currentSearchType = 'posts';
         let searchTimeout = null;
-        let activeMentionIndex = -1;
         
         // Post Cache allows linking specific posts by ID to update likes uniformly
         let postCache = {}; 
@@ -493,11 +489,6 @@
             } else {
                 switchView('view-auth');
             }
-
-            // Setup the autocomplete listeners
-            const textarea = document.getElementById('create-post-content');
-            textarea.addEventListener('input', handlePostContentInput);
-            textarea.addEventListener('click', handlePostContentInput);
         };
 
         function updateApiBase(serverUrl) {
@@ -563,92 +554,6 @@
             }
         }
 
-        /* Caret Coordinate Finder helper for positioning autocomplete menu overlay */
-        function getCaretCoordinates(element, position) {
-            const div = document.createElement('div');
-            const style = window.getComputedStyle(element);
-            for (const prop of style) {
-                div.style[prop] = style[prop];
-            }
-            div.style.position = 'absolute';
-            div.style.visibility = 'hidden';
-            div.style.whiteSpace = 'pre-wrap';
-            div.style.wordWrap = 'break-word';
-            
-            const text = element.value.substring(0, position);
-            div.textContent = text;
-            
-            const span = document.createElement('span');
-            span.textContent = element.value.substring(position) || '.';
-            div.appendChild(span);
-            
-            document.body.appendChild(div);
-            const { offsetLeft, offsetTop } = span;
-            const rect = element.getBoundingClientRect();
-            document.body.removeChild(div);
-            
-            return {
-                left: element.offsetLeft + offsetLeft - element.scrollLeft,
-                top: element.offsetTop + offsetTop - element.scrollTop
-            };
-        }
-
-        async function handlePostContentInput() {
-            const textarea = document.getElementById('create-post-content');
-            const dropdown = document.getElementById('mention-dropdown');
-            const caretPos = textarea.selectionStart;
-            const textBefore = textarea.value.substring(0, caretPos);
-            const lastAt = textBefore.lastIndexOf('@');
-
-            if (lastAt !== -1 && !textBefore.substring(lastAt).includes(' ')) {
-                const query = textBefore.substring(lastAt + 1);
-                activeMentionIndex = lastAt;
-
-                try {
-                    const data = await apiRequest('/search', { query: query, type: 'users' });
-                    if (data.results && data.results.length > 0) {
-                        const coords = getCaretCoordinates(textarea, lastAt);
-                        dropdown.style.left = `${coords.left}px`;
-                        dropdown.style.top = `${coords.top + 24}px`;
-                        dropdown.innerHTML = '';
-                        
-                        data.results.forEach(user => {
-                            const option = document.createElement('div');
-                            option.className = 'p-2 border-b border-zinc-700/50 cursor-pointer hover:bg-[var(--md-sys-color-primary-container)] hover:text-[var(--md-sys-color-on-primary-container)] text-sm font-medium';
-                            option.innerHTML = `${user.username}<span class="opacity-50 text-xs">#${user.user_id}</span>`;
-                            option.addEventListener('mousedown', (e) => {
-                                e.preventDefault(); // prevents textarea from losing focus
-                                insertMention(user.username, user.user_id);
-                            });
-                            dropdown.appendChild(option);
-                        });
-                        dropdown.classList.remove('hidden');
-                    } else {
-                        dropdown.classList.add('hidden');
-                    }
-                } catch(e) {
-                    dropdown.classList.add('hidden');
-                }
-            } else {
-                dropdown.classList.add('hidden');
-            }
-        }
-
-        function insertMention(username, userId) {
-            const textarea = document.getElementById('create-post-content');
-            const dropdown = document.getElementById('mention-dropdown');
-            const text = textarea.value;
-            const before = text.substring(0, activeMentionIndex);
-            const after = text.substring(textarea.selectionStart);
-            
-            textarea.value = `${before}@${username}#${userId} ${after}`;
-            dropdown.classList.add('hidden');
-            textarea.focus();
-            
-            const newCursorPos = activeMentionIndex + username.length + userId.length + 3; // '@', '#', space
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
-        }
-
         // --- UTILS ---
         function showToast(message) {
             const snackbar = document.getElementById("snackbar");
@@ -689,10 +594,15 @@
                 if (!response.ok) throw new Error(data.error || 'API Error');
                 return data;
             } catch (err) {
+                // Catch network/connection failure
                 if (err instanceof TypeError || err.message === 'Failed to fetch' || err.name === 'TypeError') {
                     const serverUrl = localStorage.getItem('soshal_server_address') || 'https://dermal-brinda-marshier.ngrok-free.dev';
                     showToast("Connection failed! Launching browser window to bypass potential restrictions/warnings...");
-                    setTimeout(() => { window.open(serverUrl, '_blank'); }, 1200);
+                    
+                    // Delay window.open slightly to give user time to read the toast message
+                    setTimeout(() => {
+                        window.open(serverUrl, '_blank');
+                    }, 1200);
                 }
                 throw err;
             }
@@ -737,16 +647,9 @@
             switchView('view-auth');
         }
 
-        // Render raw string content with clickable links for @Username handles
-        function parseMentions(content) {
-            return content.replace(/@([a-zA-Z0-9_-]+)(#[a-zA-Z0-9]{5})?/g, (match, username) => {
-                return `<span class="text-[var(--md-sys-color-primary)] font-bold cursor-pointer hover:underline" onclick="event.stopPropagation(); openProfile('${username}')">${match}</span>`;
-            });
-        }
-
         // --- POST COMPONENT GENERATOR ---
         function createPostElement(post) {
-            postCache[post.id] = post; 
+            postCache[post.id] = post; // Save to global memory cache
             
             const isLiked = LikeStorage.has(post.id);
             const heartFill = isLiked ? "1" : "0";
@@ -763,8 +666,8 @@
                 </div>
             ` : '';
 
+            // Apply calculated avatar background color based on name length
             const avatarBg = getAvatarColor(post.author);
-            const parsedTextContent = parseMentions(post.content || "");
 
             el.innerHTML = `
                 <div class="flex items-center gap-3 mb-3">
@@ -774,7 +677,7 @@
                         <div class="text-xs opacity-70">${timeSince(post.timestamp)}</div>
                     </div>
                 </div>
-                <div class="text-[17px] leading-relaxed break-words whitespace-pre-wrap">${parsedTextContent}</div>
+                <div class="text-[17px] leading-relaxed break-words whitespace-pre-wrap">${post.content}</div>
                 ${imgHtml}
                 
                 <div class="flex justify-between items-center mt-3 pt-2 border-t border-[var(--md-sys-color-outline)]">
@@ -921,6 +824,7 @@
                 backBtn.style.display = 'none';
             } else {
                 backBtn.style.display = 'block';
+                // Route profile back-button to search if profile was launched from a search click
                 if (currentTab === 'search') {
                     backBtn.onclick = () => openTab('search');
                 } else {
@@ -936,6 +840,7 @@
             const isSelf = (username === AuthStorage.getUser());
             const logoutBtn = document.getElementById('profile-logout-btn');
             
+            // Ensure logout button is displayed instantly to allow troubleshooting connection issues
             if (isSelf) {
                 logoutBtn.classList.remove('hidden');
             } else {
@@ -986,6 +891,7 @@
                     });
                 }
             } catch(e) {
+                // If API fails, keep layout functional and explain troubleshooting steps
                 container.innerHTML = `
                     <div class="text-center mt-8 text-red-400 p-4 fade-up-item">
                         Could not load profile details.<br><br>
