@@ -386,7 +386,12 @@
                     </div>
                 </div>
                 
-                <button id="btn-follow" class="m3-button-filled mt-2" onclick="toggleFollow()">Follow</button>
+                <div class="flex gap-2.5 mt-2 w-full max-w-xs justify-center">
+                    <button id="btn-follow" class="m3-button-filled flex-1" onclick="toggleFollow()">Follow</button>
+                    <button id="btn-chat-profile" class="m3-button-filled flex-1 !bg-[var(--md-sys-color-primary-container)] !text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center gap-2" onclick="chatWithProfileUser()">
+                        <span class="material-symbols-outlined !text-[18px]">chat</span> Chat
+                    </button>
+                </div>
             </div>
             <hr class="border-[var(--md-sys-color-outline)] opacity-30 mb-4">
             <div class="w-full" id="profile-posts-container"></div>
@@ -1722,16 +1727,19 @@
                 document.getElementById('profile-discriminator').innerText = profileData.user_id ? `#${profileData.user_id}` : '';
 
                 const followBtn = document.getElementById('btn-follow');
+                const chatBtn = document.getElementById('btn-chat-profile');
                 const bellBtn = document.getElementById('profile-bell-btn');
                 const logoutBtn = document.getElementById('profile-logout-btn');
                 
                 if (profileData.is_self) {
                     followBtn.style.display = 'none';
+                    chatBtn.style.display = 'none';
                     logoutBtn.classList.remove('hidden');
                     bellBtn.classList.remove('hidden'); 
                     localStorage.setItem('soshal_notif_pref', profileData.notification_preference || 'following');
                 } else {
                     followBtn.style.display = 'block';
+                    chatBtn.style.display = 'flex';
                     logoutBtn.classList.add('hidden');
                     bellBtn.classList.add('hidden'); 
                     isFollowingCurrentProfile = profileData.is_following;
@@ -1753,6 +1761,24 @@
             } catch(e) {
                 container.innerHTML = `<div class="text-center mt-8 text-red-400 p-4">Unable to pull data from server.</div>`;
             }
+        }
+
+        async function chatWithProfileUser() {
+            if (!currentProfileUser) return;
+            const target = currentProfileUser;
+            
+            // Switch navigation state globally to Direct Messages tab
+            currentTab = 'dms';
+            ['global', 'following', 'search', 'profile'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.remove('active');
+                document.getElementById(`icon-${t}`).style.fontVariationSettings = "'FILL' 0";
+            });
+            document.getElementById('tab-dms').classList.add('active');
+            document.getElementById('icon-dms').style.fontVariationSettings = "'FILL' 1";
+            
+            stopPolling();
+            switchView('view-dms');
+            openActiveChat(target);
         }
 
         async function toggleFollow() {
