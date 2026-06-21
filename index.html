@@ -483,6 +483,22 @@
         </div>
     </div>
 
+    <!-- CONFIRM CONVERSATION DELETE DIALOG -->
+    <div id="dialog-confirm-delete-dm" class="fixed inset-0 z-[100] bg-black/70 hidden items-center justify-center p-4">
+        <div class="w-full max-w-sm m3-card flex flex-col gap-4 bg-[var(--md-sys-color-surface-variant)] text-[var(--md-sys-color-on-surface-variant)] border border-[var(--md-sys-color-outline)]">
+            <h3 class="text-xl font-bold flex items-center gap-2 text-red-400">
+                <span class="material-symbols-outlined text-red-400">delete_forever</span>
+                Delete Conversation?
+            </h3>
+            <p class="text-sm opacity-80">Are you sure you want to permanently delete your entire chat history with <span id="delete-dm-target-username" class="font-bold text-[var(--md-sys-color-primary)]"></span>? This action cannot be undone.</p>
+            <div class="flex justify-end gap-2 mt-4">
+                <button class="m3-button-text" onclick="closeDeleteDMModal()">Cancel</button>
+                <button class="m3-button-filled bg-red-600 hover:bg-red-700 text-white" id="btn-confirm-delete-dm" onclick="executeDeleteConversation()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POST DELETE DIALOG -->
     <div id="dialog-confirm-delete" class="fixed inset-0 z-[100] bg-black/70 hidden items-center justify-center p-4">
         <div class="w-full max-w-sm m3-card flex flex-col gap-4 bg-[var(--md-sys-color-surface-variant)] text-[var(--md-sys-color-on-surface-variant)] border border-[var(--md-sys-color-outline)]">
             <h3 class="text-xl font-bold flex items-center gap-2 text-red-400">
@@ -555,6 +571,7 @@
         window.publicKeyCache = {};
         window.sharedKeyCache = {};
         let postToDeleteId = null;
+        let dmToDeleteUser = null;
 
         // --- CRYPTOGRAPHIC ENGINE UTILS ---
         const CryptoEngine = {
@@ -684,6 +701,10 @@
                 return window.sharedKeyCache[targetUsername];
             }
             try {
+                if (!window.myPrivateKey) {
+                    console.warn("[E2EE] My private key is missing on this device.");
+                    return null;
+                }
                 let publicJwkStr = window.publicKeyCache[targetUsername];
                 if (!publicJwkStr) {
                     const data = await apiRequest('/users/get_public_key', { username: targetUsername });
@@ -704,6 +725,7 @@
                 window.sharedKeyCache[targetUsername] = sharedKey;
                 return sharedKey;
             } catch (e) {
+                console.error("[E2EE] Error deriving shared key for target:", targetUsername, e);
                 return null;
             }
         }
@@ -717,8 +739,11 @@
             get: () => localStorage.getItem('soshal_session_token'),
             getUser: () => localStorage.getItem('soshal_username') || 'unknown',
             clear: () => {
+                const u = AuthStorage.getUser();
                 localStorage.removeItem('soshal_session_token');
                 localStorage.removeItem('soshal_username');
+                localStorage.removeItem(`soshal_private_key_jwk_${u}`);
+                localStorage.removeItem(`soshal_public_key_jwk_${u}`);
                 window.myPrivateKey = null;
                 window.myPublicKey = null;
                 window.sharedKeyCache = {};
@@ -749,17 +774,63 @@
             return colors[username.length % colors.length];
         }
 
-        window.onload = () => {
-            let savedServer = localStorage.getItem('soshal_server_address') || 'https://dermal-brinda-marshier.ngrok-free.dev';
-            document.getElementById('auth-server').value = savedServer;
-            updateApiBase(savedServer);
+        // --- DYNAMIC TUNNEL DISCOVERY ON STARTUP ---
+        async function fetchDynamicServerUrl() {
+            try {
+                // Fetch text containing the target server address, adding a timestamp query to prevent browser caching
+                const response = await fetch('https://raw.githubusercontent.com/Soshal0/Soshal0.github.io/refs/heads/main/current-url.txt?t=' + Date.now());
+                if (response.ok) {
+                    let fetchedUrl = await response.text();
+                    fetchedUrl = fetchedUrl.trim();
+                    if (fetchedUrl) {
+                        console.log("[Dynamic Loader] Successfully set server address via Github target:", fetchedUrl);
+                        return fetchedUrl;
+                    }
+                }
+            } catch (err) {
+                console.error("[Dynamic Loader] GitHub endpoint check failed or is offline:", err);
+            }
+            return null;
+        }
+
+        window.onload = async () => {
+            let savedServer = localStorage.getItem('soshal_server_address');
+            
+            // Query dynamic tunnel address from GitHub repository list on launch
+            let dynamicServer = await fetchDynamicServerUrl();
+            let activeServer = dynamicServer || savedServer || 'https://dermal-brinda-marshier.ngrok-free.dev';
+            
+            document.getElementById('auth-server').value = activeServer;
+            updateApiBase(activeServer);
 
             if (AuthStorage.get()) {
+                const u = AuthStorage.getUser();
+                const jwkString = localStorage.getItem(`soshal_private_key_jwk_${u}`);
+                const pubJwk = localStorage.getItem(`soshal_public_key_jwk_${u}`);
+                
+                if (jwkString && pubJwk) {
+                    try {
+                        window.myPrivateKey = await window.crypto.subtle.importKey(
+                            "jwk",
+                            JSON.parse(jwkString),
+                            { name: "ECDH", namedCurve: "P-256" },
+                            true,
+                            ["deriveKey", "deriveBits"]
+                        );
+                        window.myPublicKey = pubJwk;
+                        console.log("[E2EE] Cryptographic session restored successfully on page reload.");
+                    } catch (err) {
+                        console.error("[E2EE] Failed to restore private key from local storage:", err);
+                    }
+                } else {
+                    console.warn("[E2EE] Cryptographic session keys not found in local storage.");
+                }
+
                 document.getElementById('global-bottom-nav').classList.remove('hidden');
                 openTab('global');
                 registerServiceWorker();
                 startPolling();
-                showToast("Welcome back! Cryptographic session restored.");
+                showToast("Welcome back! Dynamic tunnel session restored.");
             } else {
                 switchView('view-auth');
             }
@@ -780,12 +851,44 @@
             if(viewId === 'view-auth' || viewId === 'view-create') {
                 document.getElementById('global-bottom-nav').style.display = 'none';
             } else {
-                // If we are exiting to another tab, but not view-dms active chat
                 if (activeChatUser) {
                     document.getElementById('global-bottom-nav').style.display = 'none';
                 } else {
                     document.getElementById('global-bottom-nav').style.display = 'flex';
                 }
+            }
+        }
+
+        // --- DELETING CONVERSATIONS LOGIC ---
+        function confirmDeleteConversation(event, username) {
+            if (event) event.stopPropagation();
+            dmToDeleteUser = username;
+            document.getElementById('delete-dm-target-username').innerText = username;
+            document.getElementById('dialog-confirm-delete-dm').classList.remove('hidden');
+            document.getElementById('dialog-confirm-delete-dm').classList.add('flex');
+        }
+
+        function closeDeleteDMModal() {
+            dmToDeleteUser = null;
+            document.getElementById('dialog-confirm-delete-dm').classList.add('hidden');
+            document.getElementById('dialog-confirm-delete-dm').classList.remove('flex');
+        }
+
+        async function executeDeleteConversation() {
+            if (!dmToDeleteUser) return;
+            const btn = document.getElementById('btn-confirm-delete-dm');
+            btn.innerText = "Deleting...";
+            btn.disabled = true;
+            try {
+                await apiRequest('/dms/delete_conversation', { target_user: dmToDeleteUser });
+                showToast("Conversation deleted successfully.");
+                closeDeleteDMModal();
+                loadConversationsList();
+            } catch (err) {
+                showToast("Failed to delete conversation: " + err.message);
+            } finally {
+                btn.innerText = "Delete";
+                btn.disabled = false;
             }
         }
 
@@ -928,6 +1031,12 @@
                             aesKey
                         );
                         window.myPublicKey = data.public_key;
+
+                        // Secure persistence layer
+                        const exportedPrivJwk = await window.crypto.subtle.exportKey("jwk", window.myPrivateKey);
+                        localStorage.setItem(`soshal_private_key_jwk_${u}`, JSON.stringify(exportedPrivJwk));
+                        localStorage.setItem(`soshal_public_key_jwk_${u}`, window.myPublicKey);
+
                     } catch (decErr) {
                         showToast("Could not decrypt local direct-message keys.");
                     }
@@ -941,6 +1050,11 @@
                     }, true);
                     window.myPrivateKey = keys.localPrivateKey;
                     window.myPublicKey = keys.publicKey;
+
+                    // Secure persistence layer
+                    const exportedPrivJwk = await window.crypto.subtle.exportKey("jwk", window.myPrivateKey);
+                    localStorage.setItem(`soshal_private_key_jwk_${u}`, JSON.stringify(exportedPrivJwk));
+                    localStorage.setItem(`soshal_public_key_jwk_${u}`, window.myPublicKey);
                 }
 
                 document.getElementById('auth-password').value = '';
@@ -1346,14 +1460,17 @@
                     card.className = 'm3-card flex items-center justify-between cursor-pointer';
                     card.onclick = () => openActiveChat(otherUser);
                     card.innerHTML = `
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-3 flex-1 min-w-0">
                             <div class="avatar-square" style="background-color: ${getAvatarColor(otherUser)}">${otherUser.charAt(0).toUpperCase()}</div>
-                            <div>
-                                <div class="font-bold text-base">${otherUser}</div>
-                                <div class="text-sm opacity-70">${previewText}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-bold text-base truncate">${otherUser}</div>
+                                <div class="text-sm opacity-70 truncate">${previewText}</div>
                             </div>
                         </div>
-                        ${unreadBadge}
+                        <div class="flex items-center gap-3 flex-shrink-0">
+                            ${unreadBadge}
+                            <span class="material-symbols-outlined text-red-400 hover:bg-black/20 p-2 rounded-full transition-all active:scale-90" onclick="confirmDeleteConversation(event, '${otherUser}')" title="Delete Conversation">delete</span>
+                        </div>
                     `;
                     container.appendChild(card);
                 }
@@ -1504,6 +1621,7 @@
             reader.readAsDataURL(file);
         }
 
+        // --- ATTACHMENT CLEAR SYSTEM ---
         function clearDMImageSelection() {
             currentDMSelectedImage = null;
             document.getElementById('dm-image-input').value = "";
@@ -1825,6 +1943,7 @@
             img.classList.remove('scale-95'); img.classList.add('scale-100');
         }
 
+        // --- LIGHTBOX DISMISSAL SYSTEM ---
         function closeImageLightbox() {
             const lightbox = document.getElementById('image-lightbox');
             const img = document.getElementById('lightbox-img');
