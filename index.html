@@ -244,7 +244,7 @@
             font-weight: bold;
             box-shadow: var(--md-elevation-3);
             cursor: pointer;
-            display: flex;
+            display: none;
             align-items: center;
             gap: 6px;
             transition: transform 0.2s, opacity 0.2s;
@@ -1163,8 +1163,8 @@
                         <div class="w-8 h-8 rounded-full bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center font-bold text-xs flex-shrink-0">
                             ${userAvatarLetter}
                         </div>
-                        <input type="text" id="comment-input-${post.id}" class="flex-1 bg-black/20 border border-transparent rounded-full px-4 py-2 text-sm outline-none focus:border-[var(--md-sys-color-primary)] transition-colors" placeholder="Add a comment..." onkeypress="if(event.key === 'Enter') submitComment('${post.id}')">
-                        <button class="material-symbols-outlined text-[var(--md-sys-color-primary)] bg-[var(--md-sys-color-surface-variant)] p-2 flex-shrink-0 rounded-full active:scale-90 transition-transform" onclick="submitComment('${post.id}')">send</button>
+                        <input type="text" id="comment-input-${post.id}" class="flex-1 bg-black/20 border border-transparent rounded-full px-4 py-2 text-sm outline-none focus:border-[var(--md-sys-color-primary)] transition-colors" placeholder="Add a comment..." onkeypress="if(event.key === 'Enter') submitComment(event, '${post.id}')">
+                        <button class="material-symbols-outlined text-[var(--md-sys-color-primary)] bg-[var(--md-sys-color-surface-variant)] p-2 flex-shrink-0 rounded-full active:scale-90 transition-transform" onclick="submitComment(event, '${post.id}')">send</button>
                     </div>
                 </div>
             `;
@@ -1233,8 +1233,13 @@
         // --- COMMENTS ENGINE ---
         async function toggleComments(event, postId) {
             if (event) event.stopPropagation();
-            const section = document.getElementById(`comments-section-${postId}`);
-            const list = document.getElementById(`comments-list-${postId}`);
+            
+            // Resolve elements within the local parent card to prevent duplicate ID collision bugs across feeds
+            const card = event.target.closest('.m3-card');
+            if (!card) return;
+            
+            const section = card.querySelector(`[id^="comments-section-"]`);
+            const list = card.querySelector(`[id^="comments-list-"]`);
             
             if (section.classList.contains('hidden')) {
                 section.classList.remove('hidden');
@@ -1275,8 +1280,13 @@
             return el;
         }
 
-        async function submitComment(postId) {
-            const input = document.getElementById(`comment-input-${postId}`);
+        async function submitComment(event, postId) {
+            if (event) event.stopPropagation();
+            
+            const card = event.target.closest('.m3-card');
+            if (!card) return;
+            
+            const input = card.querySelector(`[id^="comment-input-"]`);
             const content = input.value.trim();
             if (!content) return;
             
@@ -1285,14 +1295,15 @@
                 const data = await apiRequest('/posts/comment', { post_id: postId, content: content });
                 input.value = '';
                 
-                const list = document.getElementById(`comments-list-${postId}`);
+                const list = card.querySelector(`[id^="comments-list-"]`);
                 if (list.innerHTML.includes('No comments yet')) list.innerHTML = '';
                 list.appendChild(createCommentItem(data.comment));
                 list.scrollTop = list.scrollHeight;
                 
-                const countEl = document.getElementById(`count-comment-${postId}`);
-                let count = parseInt(countEl.innerText) || 0;
-                countEl.innerText = count + 1;
+                // Synchronize and update all post comment counts globally
+                const counts = document.querySelectorAll(`#count-comment-${postId}`);
+                let count = parseInt(counts[0]?.innerText) || 0;
+                counts.forEach(c => c.innerText = count + 1);
                 
                 if (postCache[postId]) postCache[postId].comment_count = count + 1;
             } catch (e) {
@@ -1398,20 +1409,18 @@
             hideNewPostsBubble();
         }
 
+        // --- SYSTEM HIDE ACTIONS ---
         function showNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
             if (bubble) {
-                bubble.classList.remove('hidden'); 
-                bubble.classList.add('flex');
+                bubble.style.display = 'flex';
             }
         }
 
-        // --- SYSTEM HIDE ACTIONS ---
         function hideNewPostsBubble() {
             const bubble = document.getElementById('new-posts-bubble');
             if (bubble) {
-                bubble.classList.add('hidden'); 
-                bubble.classList.remove('flex');
+                bubble.style.display = 'none';
             }
         }
 
